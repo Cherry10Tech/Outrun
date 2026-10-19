@@ -1,0 +1,1945 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>OUTRUN // ZERO — Built by Cherry</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Leaflet Maps CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --hunter-red: #ff2a4b;
+      --runner-cyan: #00f0ff;
+      --zone-amber: #f59e0b;
+    }
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    body {
+      font-family: 'Space Grotesk', sans-serif;
+      background-color: #07090e;
+      color: #f8fafc;
+      overflow-x: hidden;
+    }
+    .mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: #0b0e17; }
+    ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 9999px; }
+
+    /* Tactical Glassmorphism */
+    .glass-panel {
+      background: rgba(13, 17, 28, 0.86);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .glass-card {
+      background: rgba(20, 26, 42, 0.72);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .glass-card.active-red {
+      background: rgba(255, 42, 75, 0.14);
+      border-color: #ff2a4b;
+      box-shadow: 0 0 20px rgba(255, 42, 75, 0.25);
+    }
+    .glass-card.active-cyan {
+      background: rgba(0, 240, 255, 0.12);
+      border-color: #00f0ff;
+      box-shadow: 0 0 20px rgba(0, 240, 255, 0.2);
+    }
+
+    /* Dark Map Styling */
+    #map {
+      width: 100%;
+      height: 100%;
+      background: #07090e;
+      z-index: 1;
+    }
+    .leaflet-container {
+      background: #07090e !important;
+      font-family: 'Space Grotesk', sans-serif !important;
+    }
+    .leaflet-control-attribution {
+      display: none !important;
+    }
+
+    /* Radar & Pulse Animations */
+    @keyframes radarSweep {
+      0% { transform: scale(0.2); opacity: 0.9; }
+      100% { transform: scale(2.8); opacity: 0; }
+    }
+    .pulse-ring {
+      animation: radarSweep 2.2s infinite ease-out;
+    }
+    @keyframes heartbeatGlow {
+      0%, 100% { box-shadow: inset 0 0 0px rgba(255, 42, 75, 0); }
+      50% { box-shadow: inset 0 0 65px rgba(255, 42, 75, 0.55); }
+    }
+    .danger-heartbeat {
+      animation: heartbeatGlow 0.85s infinite ease-in-out;
+    }
+
+    /* Mystery Role Card Flip */
+    @keyframes mysteryPulse {
+      0%, 100% { transform: scale(1); filter: drop-shadow(0 0 25px rgba(255,42,75,0.6)); }
+      50% { transform: scale(1.08); filter: drop-shadow(0 0 45px rgba(0,240,255,0.8)); }
+    }
+    .mystery-q {
+      animation: mysteryPulse 1.1s infinite ease-in-out;
+    }
+
+    /* Custom Marker Pins */
+    .player-marker {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    .marker-dot {
+      width: 16px;
+      height: 16px;
+      border-radius: 9999px;
+      border: 2.5px solid #fff;
+      z-index: 10;
+    }
+    .marker-label {
+      position: absolute;
+      top: 20px;
+      background: rgba(7, 9, 14, 0.9);
+      color: #fff;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      white-space: nowrap;
+      border: 1px solid rgba(255,255,255,0.15);
+      z-index: 20;
+    }
+  </style>
+</head>
+<body class="h-[100dvh] w-screen overflow-hidden flex flex-col select-none">
+
+  <!-- ========================================================= -->
+  <!-- SCREEN 1: HOME / MODE SELECTION                           -->
+  <!-- ========================================================= -->
+  <section id="screen-home" class="relative h-full w-full flex flex-col justify-between p-6 overflow-y-auto bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-[#07090e] to-[#05060a]">
+    
+    <!-- Top Branding Bar -->
+    <div class="flex items-center justify-between z-10">
+      <div class="flex items-center gap-2">
+        <span class="inline-block w-2.5 h-2.5 rounded-full bg-[#ff2a4b] animate-ping"></span>
+        <span class="mono text-xs tracking-widest uppercase text-slate-400">GPS TACTICAL GRID v2.4</span>
+      </div>
+      <!-- Built By Cherry Badge -->
+      <div class="px-3 py-1 rounded-full bg-white/5 border border-white/10 flex items-center gap-1.5 shadow-inner">
+        <i data-lucide="Flame" class="w-3.5 h-3.5 text-[#ff2a4b]"></i>
+        <span class="mono text-[11px] font-semibold tracking-wider text-slate-200">BUILT BY <span class="text-[#00f0ff]">CHERRY</span></span>
+      </div>
+    </div>
+
+    <!-- Hero Title & Visual -->
+    <div class="my-auto py-6 flex flex-col items-center text-center max-w-md mx-auto z-10">
+      <div class="relative w-24 h-24 mb-6 flex items-center justify-center">
+        <div class="absolute inset-0 rounded-full border border-[#ff2a4b]/40 pulse-ring"></div>
+        <div class="absolute inset-2 rounded-full border border-[#00f0ff]/30 pulse-ring" style="animation-delay: 0.7s"></div>
+        <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#ff2a4b] to-rose-900 flex items-center justify-center shadow-[0_0_40px_rgba(255,42,75,0.45)] border border-white/20">
+          <i data-lucide="crosshair" class="w-10 h-10 text-white"></i>
+        </div>
+      </div>
+
+      <h1 class="text-5xl sm:text-6xl font-bold tracking-tighter uppercase leading-none">
+        OUTRUN <span class="text-transparent bg-clip-text bg-gradient-to-r from-[#ff2a4b] via-rose-400 to-[#00f0ff]">// ZERO</span>
+      </h1>
+      <p class="mt-3 text-sm text-slate-400 max-w-xs leading-relaxed">
+        Real-world GPS battle royale manhunt. Shrinking safe zones, timed radar pings, and tactical evasion.
+      </p>
+
+      <!-- Player Callsign Input -->
+      <div class="w-full mt-7">
+        <label class="block text-left mono text-[11px] uppercase tracking-wider text-slate-400 mb-1.5">Your Operative Callsign</label>
+        <div class="relative">
+          <input id="input-player-name" type="text" value="CHERRY" maxlength="14"
+            class="w-full bg-slate-900/90 border border-slate-700/80 focus:border-[#00f0ff] rounded-xl px-4 py-3.5 text-white font-semibold mono tracking-wide outline-none transition"
+            placeholder="Enter Callsign..." />
+          <span class="absolute right-3.5 top-3.5 text-xs mono text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded border border-emerald-500/20">READY</span>
+        </div>
+      </div>
+
+      <!-- Dual Engine Selection Cards -->
+      <div class="w-full mt-5 space-y-3 text-left">
+        <div class="mono text-[11px] uppercase tracking-wider text-slate-400">Select Engine Mode</div>
+
+        <!-- Mode A: Sandbox / Simulation -->
+        <button onclick="enterLobby('sandbox')" class="w-full glass-card hover:border-[#00f0ff]/60 p-4 rounded-2xl flex items-start gap-4 group text-left">
+          <div class="p-3 rounded-xl bg-[#00f0ff]/10 border border-[#00f0ff]/30 text-[#00f0ff] group-hover:scale-105 transition">
+            <i data-lucide="cpu" class="w-6 h-6"></i>
+          </div>
+          <div class="flex-1">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-base text-white flex items-center gap-2">
+                Sandbox / Simulation Mode
+                <span class="text-[10px] mono px-2 py-0.5 rounded bg-[#00f0ff]/20 text-[#00f0ff]">INSTANT TEST</span>
+              </span>
+              <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400 group-hover:translate-x-1 transition"></i>
+            </div>
+            <p class="text-xs text-slate-400 mt-1 leading-relaxed">
+              Test everything solo right now. Spawns autonomous AI Hunters & Runners on your map with tap-to-move or live GPS controls.
+            </p>
+          </div>
+        </button>
+
+        <!-- Mode B: Live GPS Multiplayer -->
+        <button onclick="enterLobby('live')" class="w-full glass-card hover:border-[#ff2a4b]/60 p-4 rounded-2xl flex items-start gap-4 group text-left">
+          <div class="p-3 rounded-xl bg-[#ff2a4b]/10 border border-[#ff2a4b]/30 text-[#ff2a4b] group-hover:scale-105 transition">
+            <i data-lucide="radio" class="w-6 h-6"></i>
+          </div>
+          <div class="flex-1">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-base text-white flex items-center gap-2">
+                Live GPS Multiplayer Lobby
+                <span class="text-[10px] mono px-2 py-0.5 rounded bg-[#ff2a4b]/20 text-[#ff2a4b]">REAL GPS</span>
+              </span>
+              <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400 group-hover:translate-x-1 transition"></i>
+            </div>
+            <p class="text-xs text-slate-400 mt-1 leading-relaxed">
+              Host or join a live squad lobby via 4-digit Room Code. Uses your phone's real-world satellite GPS outside with friends.
+            </p>
+          </div>
+        </button>
+      </div>
+    </div>
+
+    <!-- Footer Credit -->
+    <div class="text-center z-10 pb-1">
+      <p class="mono text-[11px] text-slate-500">
+        DESIGNED & ENGINEERED BY <span class="text-slate-300 font-semibold">CHERRY</span> • OUTRUN PROTOCOL
+      </p>
+    </div>
+  </section>
+
+
+  <!-- ========================================================= -->
+  <!-- SCREEN 2: PRE-GAME LOBBY & RULE CONFIGURATOR              -->
+  <!-- ========================================================= -->
+  <section id="screen-lobby" class="hidden h-full w-full flex flex-col bg-[#07090e] overflow-hidden">
+    
+    <!-- Top Lobby Header -->
+    <header class="px-5 py-4 border-b border-white/10 flex items-center justify-between glass-panel z-20">
+      <button onclick="backToHome()" class="flex items-center gap-1.5 text-slate-300 hover:text-white text-sm font-medium">
+        <i data-lucide="arrow-left" class="w-4 h-4"></i> Back
+      </button>
+      <div class="text-center">
+        <div class="text-xs mono uppercase tracking-widest text-slate-400" id="lobby-engine-badge">SANDBOX ENGINE</div>
+        <h2 class="font-bold text-base tracking-tight">PRE-GAME TACTICAL LOBBY</h2>
+      </div>
+      <div class="px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 mono text-xs font-bold text-[#00f0ff]" id="lobby-room-code">
+        #4092
+      </div>
+    </header>
+
+    <!-- Scrollable Lobby Body -->
+    <div class="flex-1 overflow-y-auto p-5 space-y-6 max-w-2xl mx-auto w-full">
+
+      <!-- 1. GAME MODE SELECTOR + EXPLANATION -->
+      <div class="space-y-2.5">
+        <div class="flex items-center justify-between">
+          <label class="mono text-xs uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+            <i data-lucide="swords" class="w-3.5 h-3.5 text-[#ff2a4b]"></i> 1. Select Game Mode
+          </label>
+          <span class="mono text-[11px] text-slate-500">HOST CONFIG</span>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <button onclick="setLobbyOption('gameMode', 'classic')" id="btn-mode-classic"
+            class="glass-card active-cyan p-3.5 rounded-xl text-left">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-sm text-white">Classic Elimination</span>
+              <i data-lucide="shield-alert" class="w-4 h-4 text-[#00f0ff]"></i>
+            </div>
+            <div class="text-[11px] text-slate-400 mt-0.5">Video Original Rules</div>
+          </button>
+
+          <button onclick="setLobbyOption('gameMode', 'infection')" id="btn-mode-infection"
+            class="glass-card p-3.5 rounded-xl text-left">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-sm text-white">Infection Mode</span>
+              <i data-lucide="biohazard" class="w-4 h-4 text-[#ff2a4b]"></i>
+            </div>
+            <div class="text-[11px] text-slate-400 mt-0.5">Caught Runners Turn</div>
+          </button>
+        </div>
+
+        <!-- Dynamic Mode Explanation Box -->
+        <div class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 flex items-start gap-3">
+          <i data-lucide="info" class="w-4 h-4 text-[#00f0ff] shrink-0 mt-0.5"></i>
+          <p id="desc-gameMode" class="text-xs text-slate-300 leading-relaxed">
+            <strong class="text-white">Classic Elimination:</strong> Caught Runners are eliminated and enter Spectator Mode to watch the live radar. The last Runner standing—or any Runner still free when the timer hits zero—wins.
+          </p>
+        </div>
+      </div>
+
+      <!-- 2. GAMEPLAY STYLE (REALISTIC VS TACTICAL) + EXPLANATION -->
+      <div class="space-y-2.5">
+        <label class="mono text-xs uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+          <i data-lucide="Cpu" class="w-3.5 h-3.5 text-[#00f0ff]"></i> 2. Loadout & Gameplay Style
+        </label>
+
+        <div class="grid grid-cols-2 gap-3">
+          <button onclick="setLobbyOption('loadoutMode', 'tactical')" id="btn-loadout-tactical"
+            class="glass-card active-cyan p-3.5 rounded-xl text-left">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-sm text-white">Tactical Enhanced</span>
+              <i data-lucide="zap" class="w-4 h-4 text-[#00f0ff]"></i>
+            </div>
+            <div class="text-[11px] text-slate-400 mt-0.5">Heartbeat + Abilities</div>
+          </button>
+
+          <button onclick="setLobbyOption('loadoutMode', 'realistic')" id="btn-loadout-realistic"
+            class="glass-card p-3.5 rounded-xl text-left">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-sm text-white">Pure Realistic</span>
+              <i data-lucide="compass" class="w-4 h-4 text-emerald-400"></i>
+            </div>
+            <div class="text-[11px] text-slate-400 mt-0.5">No Abilities / Raw GPS</div>
+          </button>
+        </div>
+
+        <!-- Dynamic Loadout Explanation Box -->
+        <div class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 flex items-start gap-3">
+          <i data-lucide="sparkles" class="w-4 h-4 text-[#00f0ff] shrink-0 mt-0.5"></i>
+          <p id="desc-loadoutMode" class="text-xs text-slate-300 leading-relaxed">
+            <strong class="text-white">Tactical Enhanced:</strong> Unlocks a <span class="text-[#ff2a4b] font-semibold">40m Proximity Heartbeat Sensor</span> plus 1-time abilities: Runners get <span class="text-[#00f0ff]">Ghost Mode</span> (skip 1 radar ping) & <span class="text-[#00f0ff]">Decoy Ping</span>; Hunters get <span class="text-[#ff2a4b]">UAV Sweep</span> (100m instant scan) & <span class="text-[#ff2a4b]">Bloodhound</span> compass tracker.
+          </p>
+        </div>
+      </div>
+
+      <!-- 3. TAG VERIFICATION SYSTEM + EXPLANATION -->
+      <div class="space-y-2.5">
+        <label class="mono text-xs uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+          <i data-lucide="fingerprint" class="w-3.5 h-3.5 text-amber-400"></i> 3. Tag Verification System
+        </label>
+
+        <div class="grid grid-cols-3 gap-2.5">
+          <button onclick="setLobbyOption('tagSystem', 'honor')" id="btn-tag-honor"
+            class="glass-card active-cyan p-3 rounded-xl text-left">
+            <div class="font-bold text-xs text-white">Honor Confirm</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">2-Way Tap</div>
+          </button>
+
+          <button onclick="setLobbyOption('tagSystem', 'killcode')" id="btn-tag-killcode"
+            class="glass-card p-3 rounded-xl text-left">
+            <div class="font-bold text-xs text-white">2-Digit Code</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">Anti-Cheat Pin</div>
+          </button>
+
+          <button onclick="setLobbyOption('tagSystem', 'proximity')" id="btn-tag-proximity"
+            class="glass-card p-3 rounded-xl text-left">
+            <div class="font-bold text-xs text-white">GPS Lock</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">&lt;25m Unlock</div>
+          </button>
+        </div>
+
+        <!-- Dynamic Tag System Explanation Box -->
+        <div class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 flex items-start gap-3">
+          <i data-lucide="shield-check" class="w-4 h-4 text-amber-400 shrink-0 mt-0.5"></i>
+          <p id="desc-tagSystem" class="text-xs text-slate-300 leading-relaxed">
+            <strong class="text-white">Honor Confirm (Video Original):</strong> Fast and built for trusted friends. Runner taps "I Got Tagged" when caught in person, or the Hunter marks them and the Runner confirms on their screen.
+          </p>
+        </div>
+      </div>
+
+      <!-- 4. ZONE & TIMING PARAMETERS -->
+      <div class="glass-card p-4 rounded-2xl space-y-4">
+        <div class="flex items-center justify-between">
+          <span class="mono text-xs uppercase tracking-wider text-slate-300">4. Zone & Radar Parameters</span>
+          <span class="mono text-[11px] text-[#00f0ff]" id="zone-summary-label">500m • 5m Shrink • 30s Ping</span>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2.5 text-center">
+          <div class="bg-slate-900/90 p-2.5 rounded-xl border border-white/5">
+            <div class="text-[10px] mono uppercase text-slate-400">Start Zone</div>
+            <select id="select-zone-radius" onchange="updateZoneSummary()" class="mt-1 bg-transparent font-bold text-sm text-white mono outline-none text-center w-full">
+              <option value="350" class="bg-slate-900">350m (Tight)</option>
+              <option value="500" selected class="bg-slate-900">500m (Medium)</option>
+              <option value="625" class="bg-slate-900">625m (Video)</option>
+            </select>
+          </div>
+
+          <div class="bg-slate-900/90 p-2.5 rounded-xl border border-white/5">
+            <div class="text-[10px] mono uppercase text-slate-400">Head Start</div>
+            <select id="select-headstart" onchange="updateZoneSummary()" class="mt-1 bg-transparent font-bold text-sm text-white mono outline-none text-center w-full">
+              <option value="10" selected class="bg-slate-900">10s (Fast Demo)</option>
+              <option value="60" class="bg-slate-900">1 Min (Quick)</option>
+              <option value="300" class="bg-slate-900">5 Min (Video)</option>
+            </select>
+          </div>
+
+          <div class="bg-slate-900/90 p-2.5 rounded-xl border border-white/5">
+            <div class="text-[10px] mono uppercase text-slate-400">Radar Ping</div>
+            <select id="select-ping-interval" onchange="updateZoneSummary()" class="mt-1 bg-transparent font-bold text-sm text-white mono outline-none text-center w-full">
+              <option value="20" selected class="bg-slate-900">Every 20s</option>
+              <option value="45" class="bg-slate-900">Every 45s</option>
+              <option value="90" class="bg-slate-900">Every 90s</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. YOUR STARTING ROLE PREFERENCE -->
+      <div class="space-y-2">
+        <label class="mono text-xs uppercase tracking-wider text-slate-300">5. Your Role Preference</label>
+        <div class="grid grid-cols-3 gap-2.5">
+          <button onclick="setRolePref('random')" id="pref-random" class="glass-card active-cyan py-2.5 px-3 rounded-xl font-bold text-xs text-center">
+            🎲 Random
+          </button>
+          <button onclick="setRolePref('runner')" id="pref-runner" class="glass-card py-2.5 px-3 rounded-xl font-bold text-xs text-center text-[#00f0ff]">
+            🏃‍♂️ Runner
+          </button>
+          <button onclick="setRolePref('hunter')" id="pref-hunter" class="glass-card py-2.5 px-3 rounded-xl font-bold text-xs text-center text-[#ff2a4b]">
+            🎯 Hunter
+          </button>
+        </div>
+      </div>
+
+      <!-- 6. PLAYERS IN LOBBY LIST -->
+      <div class="glass-card p-4 rounded-2xl space-y-3">
+        <div class="flex items-center justify-between">
+          <span class="mono text-xs uppercase tracking-wider text-slate-300" id="lobby-player-count">Players in Lobby (7)</span>
+          <button onclick="addBotToLobby()" id="btn-add-bot" class="text-xs mono text-[#00f0ff] hover:underline flex items-center gap-1">
+            + Add Operative
+          </button>
+        </div>
+        <div id="lobby-player-list" class="space-y-2 max-h-48 overflow-y-auto pr-1">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Bottom Launch Button -->
+    <div class="p-4 border-t border-white/10 glass-panel z-20">
+      <div class="max-w-2xl mx-auto flex items-center gap-3">
+        <button onclick="triggerRoleRevealSequence()" class="w-full py-4 rounded-2xl bg-gradient-to-r from-[#ff2a4b] to-rose-600 hover:from-[#ff2a4b]/90 hover:to-rose-500 text-white font-bold text-base tracking-wide uppercase shadow-[0_0_30px_rgba(255,42,75,0.4)] flex items-center justify-center gap-2 transition active:scale-[0.99]">
+          <i data-lucide="play" class="w-5 h-5 fill-current"></i>
+          START MANHUNT
+        </button>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ========================================================= -->
+  <!-- SCREEN 3: CINEMATIC "?" ROLE REVEAL OVERLAY (VIDEO MATCH) -->
+  <!-- ========================================================= -->
+  <section id="screen-reveal" class="hidden fixed inset-0 z-50 flex flex-col items-center justify-center p-6 bg-[#07090e] transition-colors duration-700">
+    
+    <!-- Stage A: Mystery Question Mark -->
+    <div id="reveal-stage-mystery" class="flex flex-col items-center text-center">
+      <div class="mono text-xs uppercase tracking-[0.3em] text-slate-400 mb-6">ASSIGNING ROLES AT RANDOM...</div>
+      <div class="text-[150px] font-black leading-none text-[#ff2a4b] mystery-q select-none">?</div>
+      <p class="mt-8 text-sm text-slate-400 mono animate-pulse">Synchronizing satellite perimeter...</p>
+    </div>
+
+    <!-- Stage B: Revealed Role Card ("You're it." or "Run.") -->
+    <div id="reveal-stage-final" class="hidden flex-col items-center text-center max-w-sm">
+      <div id="reveal-badge" class="px-3 py-1 rounded-full bg-black/30 border border-white/20 mono text-xs uppercase tracking-widest mb-4">
+        ROLE CONFIRMED
+      </div>
+      <h1 id="reveal-title" class="text-6xl font-black tracking-tight leading-none">
+        You're it.
+      </h1>
+      <p id="reveal-subtitle" class="mt-4 text-base font-medium text-white/90 leading-relaxed">
+        Runners get a head start. Track their pings and tag them in person before time expires.
+      </p>
+      <div id="reveal-killcode-box" class="mt-6 px-5 py-3 rounded-2xl bg-black/40 border border-white/20 mono text-sm">
+        YOUR SECRET KILL CODE: <span id="reveal-killcode" class="font-black text-xl text-white ml-1">84</span>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ========================================================= -->
+  <!-- SCREEN 4: LIVE TACTICAL MAP & HUD                         -->
+  <!-- ========================================================= -->
+  <section id="screen-game" class="hidden relative h-full w-full flex flex-col overflow-hidden">
+    
+    <!-- TOP TACTICAL HUD (Matches Video Layout + Upgraded) -->
+    <div class="relative z-20 glass-panel border-b border-white/10 px-4 pt-3 pb-3.5 shadow-2xl">
+      <div class="max-w-3xl mx-auto">
+        
+        <!-- Row 1: Role Pill, Built By Cherry, & Exit -->
+        <div class="flex items-center justify-between mb-2">
+          <div class="flex items-center gap-2">
+            <span id="hud-role-badge" class="px-2.5 py-0.5 rounded-md font-bold mono text-xs uppercase tracking-wider bg-[#00f0ff]/20 text-[#00f0ff] border border-[#00f0ff]/40">
+              RUNNER
+            </span>
+            <span id="hud-phase-badge" class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 mono text-[11px]">
+              HEAD START
+            </span>
+            <span id="hud-killcode-pill" class="hidden px-2 py-0.5 rounded bg-white/10 text-white mono text-[11px]">
+              CODE: <strong id="hud-my-code">42</strong>
+            </span>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <span class="hidden sm:inline-block mono text-[10px] text-slate-400">BY <strong class="text-[#00f0ff]">CHERRY</strong></span>
+            <button onclick="toggleAudioMute()" id="btn-audio-toggle" class="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300" title="Toggle Sound">
+              <i data-lucide="volume-2" class="w-4 h-4"></i>
+            </button>
+            <button onclick="endGameSession('ABORTED BY HOST')" class="px-2.5 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/30 text-rose-300 mono text-xs">
+              End
+            </button>
+          </div>
+        </div>
+
+        <!-- Row 2: Big Countdown Timer & Next Ping (Exact Video Inspiration) -->
+        <div class="flex items-end justify-between">
+          <div>
+            <div class="text-[11px] mono uppercase text-slate-400">Time Left</div>
+            <div id="hud-time-left" class="text-4xl sm:text-5xl font-extrabold mono tracking-tight leading-none text-white">
+              59:42
+            </div>
+          </div>
+
+          <div class="text-right">
+            <div class="text-[11px] mono uppercase text-slate-400">
+              Next Ping <span id="hud-ping-timer" class="text-white font-bold ml-1">00:20</span>
+            </div>
+            <div class="text-xs mono text-slate-300 mt-1">
+              Zone <span id="hud-zone-radius" class="text-[#00f0ff] font-bold">500m</span> • Shrinks in <span id="hud-shrink-timer" class="text-amber-400 font-bold">01:15</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Row 3: Runners Left Progress Bar -->
+        <div class="mt-3">
+          <div class="flex items-center justify-between text-xs mb-1">
+            <span class="text-slate-400 font-medium">Runners Left</span>
+            <span id="hud-runners-count" class="mono font-bold text-white">5 of 5</span>
+          </div>
+          <div class="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
+            <div id="hud-runners-bar" class="h-full bg-gradient-to-r from-[#ff2a4b] to-[#00f0ff] transition-all duration-500" style="width: 100%"></div>
+          </div>
+        </div>
+
+        <!-- Out-Of-Bounds Warning Banner -->
+        <div id="hud-oob-banner" class="hidden mt-2.5 px-3 py-1.5 rounded-lg bg-[#ff2a4b] text-white font-bold mono text-xs flex items-center justify-between animate-pulse">
+          <span>⚠️ OUTSIDE SAFE ZONE! YOUR LIVE GPS IS EXPOSED!</span>
+          <span>RETURN NOW</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- CENTER INTERACTIVE MAP AREA -->
+    <div id="map-wrapper" class="relative flex-1 w-full overflow-hidden">
+      <div id="map"></div>
+
+      <!-- Bloodhound Compass Banner (When Hunter Activates Bloodhound) -->
+      <div id="bloodhound-banner" class="hidden absolute top-3 left-1/2 -translate-x-1/2 z-20 px-4 py-2 rounded-full glass-panel border border-[#ff2a4b] text-xs mono font-bold text-white flex items-center gap-2 shadow-lg">
+        <i data-lucide="compass" class="w-4 h-4 text-[#ff2a4b] animate-spin"></i>
+        <span id="bloodhound-text">NEAREST RUNNER: 140m NORTH-EAST (NE)</span>
+      </div>
+
+      <!-- Proximity Heartbeat Sensor Indicator (Tactical Mode) -->
+      <div id="heartbeat-pill" class="hidden absolute top-3 left-3 z-20 px-3 py-1.5 rounded-full glass-panel border border-rose-500/50 flex items-center gap-2">
+        <span class="w-2.5 h-2.5 rounded-full bg-[#ff2a4b] animate-ping"></span>
+        <span class="mono text-[11px] font-bold text-rose-300" id="heartbeat-distance">HUNTER NEAR: 34m</span>
+      </div>
+
+      <!-- Map Recenter & Sandbox Controls Floating Right -->
+      <div class="absolute top-3 right-3 z-20 flex flex-col gap-2">
+        <button onclick="recenterMapOnMe()" class="p-2.5 rounded-xl glass-panel hover:border-[#00f0ff] text-white shadow-lg" title="Center on Me">
+          <i data-lucide="locate-fixed" class="w-5 h-5 text-[#00f0ff]"></i>
+        </button>
+        <button onclick="forceRadarPingNow()" class="p-2.5 rounded-xl glass-panel hover:border-amber-400 text-white shadow-lg" title="Force Global Ping (Demo)">
+          <i data-lucide="radar" class="w-5 h-5 text-amber-400"></i>
+        </button>
+        <button onclick="forceZoneShrinkNow()" class="p-2.5 rounded-xl glass-panel hover:border-[#ff2a4b] text-white shadow-lg" title="Shrink Zone Now (Demo)">
+          <i data-lucide="minimize-2" class="w-5 h-5 text-[#ff2a4b]"></i>
+        </button>
+      </div>
+
+      <!-- Sandbox Tap-to-Move Hint & Mini Joystick -->
+      <div id="sandbox-controls-hint" class="absolute bottom-3 left-3 z-20 glass-panel px-3 py-2 rounded-xl border border-white/10 text-[11px] mono text-slate-300 flex items-center gap-2">
+        <i data-lucide="mouse-pointer-click" class="w-4 h-4 text-[#00f0ff]"></i>
+        <span>SANDBOX: Tap anywhere on map to sprint there</span>
+      </div>
+    </div>
+
+    <!-- BOTTOM TACTICAL DOCK (Abilities, Tagging, & Comms Radio) -->
+    <div class="relative z-20 glass-panel border-t border-white/10 px-4 pt-3 pb-4">
+      <div class="max-w-3xl mx-auto space-y-2.5">
+        
+        <!-- Live Radio Feed Ticker -->
+        <div onclick="openModal('modal-radio')" class="cursor-pointer px-3 py-2 rounded-xl bg-slate-900/90 border border-white/10 flex items-center justify-between">
+          <div class="flex items-center gap-2 truncate">
+            <span class="text-[11px] font-bold mono uppercase px-1.5 py-0.5 rounded bg-white/10 text-slate-200">RADIO</span>
+            <span id="radio-latest-msg" class="text-xs text-slate-300 truncate">Head start active. Runners scatter!</span>
+          </div>
+          <span class="text-[11px] mono text-[#00f0ff] shrink-0 ml-2">Open Comms →</span>
+        </div>
+
+        <!-- Tactical Power-Up Bar (Shown only when Loadout = Tactical) -->
+        <div id="tactical-abilities-bar" class="grid grid-cols-2 gap-2.5">
+          <!-- Runner Ability 1 / Hunter Ability 1 -->
+          <button id="btn-ability-1" onclick="activateAbility(1)" class="glass-card hover:border-[#00f0ff] p-2.5 rounded-xl flex items-center justify-between text-left">
+            <div>
+              <div id="ability-1-name" class="font-bold text-xs text-white flex items-center gap-1.5">
+                👻 Ghost Cloak
+              </div>
+              <div id="ability-1-desc" class="text-[10px] text-slate-400">Hide from next radar ping</div>
+            </div>
+            <span id="ability-1-charges" class="mono text-xs font-bold px-2 py-0.5 rounded bg-[#00f0ff]/20 text-[#00f0ff]">1x</span>
+          </button>
+
+          <!-- Runner Ability 2 / Hunter Ability 2 -->
+          <button id="btn-ability-2" onclick="activateAbility(2)" class="glass-card hover:border-[#00f0ff] p-2.5 rounded-xl flex items-center justify-between text-left">
+            <div>
+              <div id="ability-2-name" class="font-bold text-xs text-white flex items-center gap-1.5">
+                📡 Decoy Ping
+              </div>
+              <div id="ability-2-desc" class="text-[10px] text-slate-400">Drop fake ping 100m away</div>
+            </div>
+            <span id="ability-2-charges" class="mono text-xs font-bold px-2 py-0.5 rounded bg-[#00f0ff]/20 text-[#00f0ff]">1x</span>
+          </button>
+        </div>
+
+        <!-- Primary Action Row: Tag Verification & Squad Roster -->
+        <div class="flex items-center gap-2.5">
+          <button onclick="openTagModal()" id="btn-primary-tag" class="flex-1 py-3.5 px-4 rounded-xl font-bold text-sm uppercase tracking-wider bg-[#ff2a4b] hover:bg-[#ff2a4b]/90 text-white shadow-[0_0_25px_rgba(255,42,75,0.35)] flex items-center justify-center gap-2 transition">
+            <i data-lucide="hand" class="w-4 h-4"></i>
+            <span id="btn-primary-tag-label">I Got Tagged</span>
+          </button>
+
+          <button onclick="openModal('modal-roster')" class="py-3.5 px-4 rounded-xl glass-card hover:border-white/30 text-white font-bold text-xs mono flex items-center gap-1.5">
+            <i data-lucide="users" class="w-4 h-4 text-[#00f0ff]"></i>
+            <span>Roster</span>
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ========================================================= -->
+  <!-- MODAL 1: TAG VERIFICATION MODAL (DYNAMIC PER SYSTEM)      -->
+  <!-- ========================================================= -->
+  <div id="modal-tag" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-5">
+    <div class="glass-panel w-full max-w-md rounded-2xl p-5 border border-white/15 space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="font-bold text-lg text-white flex items-center gap-2">
+          <i data-lucide="crosshair" class="w-5 h-5 text-[#ff2a4b]"></i>
+          <span id="tag-modal-title">Tag Verification</span>
+        </h3>
+        <button onclick="closeModal('modal-tag')" class="text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <p id="tag-modal-subtitle" class="text-xs text-slate-300 leading-relaxed">
+        Verify physical tag according to the lobby's active rule set.
+      </p>
+
+      <div id="tag-modal-body" class="space-y-3">
+        <!-- Populated dynamically based on Honor / 2-Digit Code / Proximity -->
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ========================================================= -->
+  <!-- MODAL 2: IN-GAME TACTICAL RADIO & QUICK CHAT              -->
+  <!-- ========================================================= -->
+  <div id="modal-radio" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-4">
+    <div class="glass-panel w-full max-w-md rounded-2xl p-5 border border-white/15 flex flex-col max-h-[80vh]">
+      <div class="flex items-center justify-between pb-3 border-b border-white/10">
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+          <h3 class="font-bold text-base text-white mono">TACTICAL RADIO COMMS</h3>
+        </div>
+        <button onclick="closeModal('modal-radio')" class="text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Feed List -->
+      <div id="radio-feed-list" class="flex-1 overflow-y-auto py-3 space-y-2 my-1 pr-1 max-h-64">
+        <!-- Populated by JS -->
+      </div>
+
+      <!-- Quick Tactical Callouts -->
+      <div class="grid grid-cols-2 gap-2 pt-2 border-t border-white/10">
+        <button onclick="sendRadioQuickMsg('Spotted movement near center!')" class="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-xs text-left text-slate-200 truncate">
+          👀 "Spotted movement!"
+        </button>
+        <button onclick="sendRadioQuickMsg('Zone is shrinking, move in!')" class="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-xs text-left text-slate-200 truncate">
+          ⚠️ "Zone shrinking, move!"
+        </button>
+        <button onclick="sendRadioQuickMsg('Close call! Barely escaped.')" class="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-xs text-left text-slate-200 truncate">
+          🏃‍♂️ "Barely escaped!"
+        </button>
+        <button onclick="sendRadioQuickMsg('Closing in on target ping!')" class="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-xs text-left text-slate-200 truncate">
+          🎯 "Closing in on ping!"
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ========================================================= -->
+  <!-- MODAL 3: SQUAD ROSTER & LIVE STATUS                       -->
+  <!-- ========================================================= -->
+  <div id="modal-roster" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-5">
+    <div class="glass-panel w-full max-w-md rounded-2xl p-5 border border-white/15 space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="font-bold text-base text-white mono">SQUAD OPERATIVE STATUS</h3>
+        <button onclick="closeModal('modal-roster')" class="text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div id="roster-modal-list" class="space-y-2 max-h-80 overflow-y-auto"></div>
+    </div>
+  </div>
+
+
+  <!-- ========================================================= -->
+  <!-- MODAL 4: POST-MATCH VICTORY / SUMMARY SCREEN              -->
+  <!-- ========================================================= -->
+  <div id="modal-gameover" class="hidden fixed inset-0 z-50 bg-black/90 backdrop-blur-xl flex items-center justify-center p-6">
+    <div class="glass-panel w-full max-w-md rounded-3xl p-6 border border-white/15 text-center space-y-5">
+      <div class="w-16 h-16 rounded-2xl bg-[#00f0ff]/15 border border-[#00f0ff]/40 flex items-center justify-center mx-auto text-[#00f0ff]">
+        <i data-lucide="trophy" class="w-8 h-8"></i>
+      </div>
+      <div>
+        <div class="mono text-xs uppercase tracking-widest text-slate-400">OPERATION CONCLUDED</div>
+        <h2 id="gameover-title" class="text-3xl font-black text-white mt-1">RUNNERS SURVIVED</h2>
+        <p id="gameover-subtitle" class="text-xs text-slate-300 mt-2 leading-relaxed"></p>
+      </div>
+      <div class="p-3.5 rounded-2xl bg-slate-900/90 border border-white/10 mono text-xs text-slate-300 space-y-1">
+        <div>ENGINEERED BY <span class="text-[#00f0ff] font-bold">CHERRY</span></div>
+        <div id="gameover-stats" class="text-slate-400"></div>
+      </div>
+      <button onclick="resetToLobby()" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#00f0ff] to-cyan-500 text-slate-950 font-bold text-sm uppercase tracking-wider">
+        Return to Lobby
+      </button>
+    </div>
+  </div>
+
+
+  <!-- ========================================================= -->
+  <!-- APPLICATION LOGIC & TACTICAL ENGINE                       -->
+  <!-- ========================================================= -->
+  <script>
+    // Initialize Lucide icons
+    lucide.createIcons();
+
+    // -----------------------------------------------------------
+    // 1. WEB AUDIO SYNTHESIZER (No external MP3 files needed)
+    // -----------------------------------------------------------
+    const SoundFX = {
+      ctx: null,
+      muted: false,
+      init() {
+        if (!this.ctx) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (AudioCtx) this.ctx = new AudioCtx();
+        }
+      },
+      playTone(freq = 440, type = 'sine', duration = 0.15, vol = 0.15) {
+        if (this.muted) return;
+        try {
+          this.init();
+          if (!this.ctx) return;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = type;
+          osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+          gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + duration);
+        } catch (e) {}
+      },
+      radarPing() {
+        this.playTone(880, 'sine', 0.35, 0.2);
+        setTimeout(() => this.playTone(1320, 'sine', 0.25, 0.12), 110);
+      },
+      heartbeat() {
+        this.playTone(75, 'triangle', 0.12, 0.3);
+        setTimeout(() => this.playTone(65, 'triangle', 0.16, 0.25), 140);
+      },
+      alertAlarm() {
+        this.playTone(520, 'sawtooth', 0.2, 0.18);
+        setTimeout(() => this.playTone(390, 'sawtooth', 0.28, 0.18), 180);
+      },
+      revealDrum() {
+        this.playTone(140, 'sawtooth', 0.45, 0.25);
+        setTimeout(() => this.playTone(280, 'sine', 0.5, 0.25), 120);
+      }
+    };
+
+    function toggleAudioMute() {
+      SoundFX.muted = !SoundFX.muted;
+      const btn = document.getElementById('btn-audio-toggle');
+      btn.innerHTML = `<i data-lucide="${SoundFX.muted ? 'volume-x' : 'volume-2'}" class="w-4 h-4"></i>`;
+      lucide.createIcons();
+    }
+
+    // -----------------------------------------------------------
+    // 2. EXPLANATIONS DICTIONARY (Shown dynamically in Lobby)
+    // -----------------------------------------------------------
+    const RULE_EXPLANATIONS = {
+      gameMode: {
+        classic: `<strong class="text-white">Classic Elimination:</strong> Caught Runners are eliminated and enter Spectator Mode to watch the live radar. The last Runner standing—or any Runner still free when the timer hits zero—wins.`,
+        infection: `<strong class="text-white">Infection Mode:</strong> Caught Runners immediately switch teams and become Hunters! The hunting pack grows larger with every catch until the final Runner falls or time expires.`
+      },
+      loadoutMode: {
+        tactical: `<strong class="text-white">Tactical Enhanced:</strong> Unlocks a <span class="text-[#ff2a4b] font-semibold">40m Proximity Heartbeat Sensor</span> plus 1-time abilities: Runners get <span class="text-[#00f0ff]">Ghost Cloak</span> (skip 1 radar ping) & <span class="text-[#00f0ff]">Decoy Ping</span>; Hunters get <span class="text-[#ff2a4b]">UAV Sweep</span> (100m instant scan) & <span class="text-[#ff2a4b]">Bloodhound</span> compass tracker.`,
+        realistic: `<strong class="text-white">Pure Realistic (Video Original):</strong> No abilities, no proximity heartbeat warnings. Just the shrinking safe zone and periodic radar pings. Rely purely on stamina, street smarts, and hiding spots.`
+      },
+      tagSystem: {
+        honor: `<strong class="text-white">Honor Confirm (Best for Casual Friends):</strong> Fast and built for fair play. Runner taps "I Got Tagged" when caught in person, or the Hunter marks them and the Runner confirms it.`,
+        killcode: `<strong class="text-white">2-Digit Kill Code (Best Anti-Cheat):</strong> Each Runner's phone displays a secret 2-digit code on their HUD. To eliminate a Runner, the Hunter must physically catch them and enter that Runner's 2-digit code.`,
+        proximity: `<strong class="text-white">GPS Proximity Lock (Hybrid):</strong> Prevents fake or accidental long-range tags. The tag button stays locked until the Hunter and Runner are within 25 meters of each other on satellite GPS.`
+      }
+    };
+
+    // -----------------------------------------------------------
+    // 3. GLOBAL GAME STATE
+    // -----------------------------------------------------------
+    const GameState = {
+      engine: 'sandbox',       // 'sandbox' | 'live'
+      roomCode: '4092',
+      gameMode: 'classic',     // 'classic' | 'infection'
+      loadoutMode: 'tactical', // 'tactical' | 'realistic'
+      tagSystem: 'honor',      // 'honor' | 'killcode' | 'proximity'
+      rolePref: 'random',      // 'random' | 'runner' | 'hunter'
+
+      // Configurable Timers & Distances
+      startZoneRadius: 500,    // meters
+      currentZoneRadius: 500,
+      headStartSeconds: 10,
+      pingIntervalSeconds: 20,
+      shrinkIntervalSeconds: 75,
+
+      // Live Match Runtime
+      matchRunning: false,
+      inHeadStart: true,
+      matchTimeRemaining: 3600,
+      nextPingCountdown: 20,
+      nextShrinkCountdown: 75,
+
+      // Map Center & Coordinates (Defaults to central urban coordinates if GPS denied)
+      centerLat: 12.9716,
+      centerLng: 77.5946,
+
+      // Local Player State
+      myId: 'p_me',
+      myName: 'CHERRY',
+      myRole: 'runner', // 'runner' | 'hunter' | 'spectator'
+      myLat: 12.9716,
+      myLng: 77.5946,
+      myTargetLat: null,
+      myTargetLng: null,
+      myKillCode: '84',
+      ghostActive: false,
+      ability1Charges: 1,
+      ability2Charges: 1,
+
+      // All Operatives (Local + AI or Connected Peers)
+      players: [],
+      radioLogs: [],
+
+      // Leaflet References
+      map: null,
+      zoneCircle: null,
+      markers: {},
+      decoyMarker: null,
+      loopInterval: null,
+      aiTickInterval: null,
+      geoWatchId: null,
+      broadcastChannel: null
+    };
+
+    const BOT_CALLSIGNS = ['ZACK', 'KIRRA', 'KATE', 'DANIEL', 'MASON', 'ANTHONY', 'MITCH', 'VEDA'];
+
+    // -----------------------------------------------------------
+    // 4. NAVIGATION & PRE-GAME LOBBY CONFIGURATION
+    // -----------------------------------------------------------
+    function enterLobby(engineMode) {
+      SoundFX.playTone(620, 'sine', 0.1, 0.1);
+      GameState.engine = engineMode;
+      const nameInput = document.getElementById('input-player-name').value.trim();
+      GameState.myName = nameInput || 'CHERRY';
+      GameState.roomCode = Math.floor(1000 + Math.random() * 9000).toString();
+
+      document.getElementById('lobby-engine-badge').textContent =
+        engineMode === 'sandbox' ? 'SANDBOX / AI SIMULATION' : 'LIVE GPS MULTI-PHONE LOBBY';
+      document.getElementById('lobby-room-code').textContent = `#${GameState.roomCode}`;
+
+      // Seed Initial Lobby Players
+      GameState.players = [
+        {
+          id: GameState.myId,
+          name: GameState.myName,
+          isMe: true,
+          isHost: true,
+          role: 'runner',
+          status: 'active',
+          lat: GameState.centerLat,
+          lng: GameState.centerLng,
+          lastPingLat: GameState.centerLat,
+          lastPingLng: GameState.centerLng,
+          killCode: String(Math.floor(10 + Math.random() * 89))
+        }
+      ];
+
+      // In Sandbox mode (or default lobby), populate 6 realistic friends like the video
+      const initialBots = engineMode === 'sandbox' ? 6 : 3;
+      for (let i = 0; i < initialBots; i++) {
+        spawnLobbyBot(BOT_CALLSIGNS[i]);
+      }
+
+      // Setup BroadcastChannel for Live Multi-Tab/Multi-Window testing
+      if ('BroadcastChannel' in window) {
+        if (GameState.broadcastChannel) GameState.broadcastChannel.close();
+        GameState.broadcastChannel = new BroadcastChannel(`outrun_room_${GameState.roomCode}`);
+        GameState.broadcastChannel.onmessage = (ev) => handleNetworkMessage(ev.data);
+      }
+
+      renderLobbyPlayers();
+      updateZoneSummary();
+
+      document.getElementById('screen-home').classList.add('hidden');
+      document.getElementById('screen-lobby').classList.remove('hidden');
+    }
+
+    function backToHome() {
+      document.getElementById('screen-lobby').classList.add('hidden');
+      document.getElementById('screen-home').classList.remove('hidden');
+    }
+
+    function setLobbyOption(category, value) {
+      SoundFX.playTone(540, 'sine', 0.08, 0.08);
+      GameState[category] = value;
+
+      // Update active card styles
+      if (category === 'gameMode') {
+        document.getElementById('btn-mode-classic').className =
+          `glass-card p-3.5 rounded-xl text-left ${value === 'classic' ? 'active-cyan' : ''}`;
+        document.getElementById('btn-mode-infection').className =
+          `glass-card p-3.5 rounded-xl text-left ${value === 'infection' ? 'active-red' : ''}`;
+      } else if (category === 'loadoutMode') {
+        document.getElementById('btn-loadout-tactical').className =
+          `glass-card p-3.5 rounded-xl text-left ${value === 'tactical' ? 'active-cyan' : ''}`;
+        document.getElementById('btn-loadout-realistic').className =
+          `glass-card p-3.5 rounded-xl text-left ${value === 'realistic' ? 'active-cyan' : ''}`;
+      } else if (category === 'tagSystem') {
+        ['honor', 'killcode', 'proximity'].forEach(t => {
+          document.getElementById(`btn-tag-${t}`).className =
+            `glass-card p-3 rounded-xl text-left ${value === t ? 'active-cyan' : ''}`;
+        });
+      }
+
+      // Update dynamic explanation paragraph below the buttons
+      const descEl = document.getElementById(`desc-${category}`);
+      if (descEl && RULE_EXPLANATIONS[category][value]) {
+        descEl.innerHTML = RULE_EXPLANATIONS[category][value];
+      }
+    }
+
+    function setRolePref(pref) {
+      SoundFX.playTone(480, 'sine', 0.08, 0.08);
+      GameState.rolePref = pref;
+      ['random', 'runner', 'hunter'].forEach(p => {
+        const el = document.getElementById(`pref-${p}`);
+        el.classList.remove('active-cyan', 'active-red');
+        if (p === pref) {
+          el.classList.add(pref === 'hunter' ? 'active-red' : 'active-cyan');
+        }
+      });
+    }
+
+    function updateZoneSummary() {
+      const r = parseInt(document.getElementById('select-zone-radius').value, 10);
+      const hs = parseInt(document.getElementById('select-headstart').value, 10);
+      const ping = parseInt(document.getElementById('select-ping-interval').value, 10);
+
+      GameState.startZoneRadius = r;
+      GameState.headStartSeconds = hs;
+      GameState.pingIntervalSeconds = ping;
+
+      const hsLabel = hs >= 60 ? `${hs / 60}m Headstart` : `${hs}s Headstart`;
+      document.getElementById('zone-summary-label').textContent = `${r}m • ${hsLabel} • ${ping}s Ping`;
+    }
+
+    function spawnLobbyBot(customName) {
+      const name = customName || BOT_CALLSIGNS[GameState.players.length % BOT_CALLSIGNS.length] + '_' + Math.floor(Math.random() * 9);
+      GameState.players.push({
+        id: 'bot_' + Math.random().toString(36).substring(2, 8),
+        name,
+        isMe: false,
+        isHost: false,
+        role: 'runner',
+        status: 'active',
+        lat: GameState.centerLat,
+        lng: GameState.centerLng,
+        targetLat: GameState.centerLat,
+        targetLng: GameState.centerLng,
+        lastPingLat: GameState.centerLat,
+        lastPingLng: GameState.centerLng,
+        killCode: String(Math.floor(10 + Math.random() * 89))
+      });
+    }
+
+    function addBotToLobby() {
+      if (GameState.players.length >= 12) return;
+      spawnLobbyBot();
+      renderLobbyPlayers();
+    }
+
+    function renderLobbyPlayers() {
+      const list = document.getElementById('lobby-player-list');
+      document.getElementById('lobby-player-count').textContent = `Players in Lobby (${GameState.players.length})`;
+      list.innerHTML = GameState.players.map((p, idx) => `
+        <div class="flex items-center justify-between px-3 py-2 rounded-xl bg-slate-900/90 border border-white/5">
+          <div class="flex items-center gap-2.5">
+            <span class="w-6 h-6 rounded-full bg-white/10 mono text-xs font-bold flex items-center justify-center text-slate-300">${idx + 1}</span>
+            <span class="font-semibold text-sm text-white">${p.name}</span>
+            ${p.isHost ? `<span class="text-[10px] mono px-1.5 py-0.5 rounded bg-[#00f0ff]/15 text-[#00f0ff]">HOST</span>` : ''}
+          </div>
+          <span class="mono text-xs text-emerald-400">Ready</span>
+        </div>
+      `).join('');
+    }
+
+    // -----------------------------------------------------------
+    // 5. CINEMATIC "?" ROLE REVEAL SEQUENCE (Matches Video 0:00-0:03)
+    // -----------------------------------------------------------
+    function triggerRoleRevealSequence() {
+      SoundFX.init();
+      SoundFX.playTone(320, 'sine', 0.25, 0.2);
+
+      // Assign Roles
+      assignMatchRoles();
+
+      // Show Reveal Screen with Mystery "?"
+      const screenReveal = document.getElementById('screen-reveal');
+      const stageMystery = document.getElementById('reveal-stage-mystery');
+      const stageFinal = document.getElementById('reveal-stage-final');
+
+      screenReveal.className = 'fixed inset-0 z-50 flex flex-col items-center justify-center p-6 bg-[#07090e] transition-colors duration-700';
+      stageMystery.classList.remove('hidden');
+      stageFinal.classList.add('hidden');
+      screenReveal.classList.remove('hidden');
+
+      // Flip into Role after 2.0 seconds
+      setTimeout(() => {
+        SoundFX.revealDrum();
+        stageMystery.classList.add('hidden');
+        stageFinal.classList.remove('hidden');
+        stageFinal.classList.add('flex');
+
+        const isHunter = GameState.myRole === 'hunter';
+        if (isHunter) {
+          screenReveal.style.backgroundColor = '#dc1e3a'; // Deep Hunter Red like video "You're it."
+          document.getElementById('reveal-badge').textContent = 'HUNTER ASSIGNED';
+          document.getElementById('reveal-title').textContent = "You're it.";
+          document.getElementById('reveal-subtitle').textContent =
+            `Wait ${GameState.headStartSeconds}s for the head start to finish, then track the radar pings and hunt down all Runners.`;
+          document.getElementById('reveal-killcode-box').classList.add('hidden');
+        } else {
+          screenReveal.style.backgroundColor = '#065f46'; // Tactical Stealth Emerald
+          document.getElementById('reveal-badge').textContent = 'RUNNER ASSIGNED';
+          document.getElementById('reveal-title').textContent = 'Evade.';
+          document.getElementById('reveal-subtitle').textContent =
+            `You have a ${GameState.headStartSeconds}s head start! Stay inside the shrinking zone or your live GPS gets exposed.`;
+          
+          const kcBox = document.getElementById('reveal-killcode-box');
+          if (GameState.tagSystem === 'killcode') {
+            kcBox.classList.remove('hidden');
+            document.getElementById('reveal-killcode').textContent = GameState.myKillCode;
+          } else {
+            kcBox.classList.add('hidden');
+          }
+        }
+
+        // Launch Tactical Map HUD after viewing role card
+        setTimeout(() => {
+          screenReveal.classList.add('hidden');
+          screenReveal.style.backgroundColor = '';
+          startLiveMatch();
+        }, 2600);
+      }, 1900);
+    }
+
+    function assignMatchRoles() {
+      const total = GameState.players.length;
+      const numHunters = total >= 6 ? 2 : 1;
+
+      // Reset everyone to runner first
+      GameState.players.forEach(p => {
+        p.role = 'runner';
+        p.status = 'active';
+      });
+
+      const me = GameState.players.find(p => p.isMe);
+      if (GameState.rolePref === 'hunter') {
+        me.role = 'hunter';
+      } else if (GameState.rolePref === 'runner') {
+        me.role = 'runner';
+      } else {
+        me.role = Math.random() < 0.38 ? 'hunter' : 'runner';
+      }
+
+      // Fill remaining hunter slots among bots/peers
+      let currentHunters = GameState.players.filter(p => p.role === 'hunter').length;
+      const others = GameState.players.filter(p => !p.isMe);
+      while (currentHunters < numHunters && others.length > 0) {
+        const candidate = others[Math.floor(Math.random() * others.length)];
+        if (candidate.role !== 'hunter') {
+          candidate.role = 'hunter';
+          currentHunters++;
+        }
+      }
+      // Ensure at least 1 hunter exists
+      if (currentHunters === 0 && others.length > 0) {
+        others[0].role = 'hunter';
+      }
+
+      GameState.myRole = me.role;
+      GameState.myKillCode = me.killCode;
+    }
+
+    // -----------------------------------------------------------
+    // 6. START MATCH & INITIALIZE LEAFLET MAP + GPS
+    // -----------------------------------------------------------
+    function startLiveMatch() {
+      document.getElementById('screen-lobby').classList.add('hidden');
+      document.getElementById('screen-game').classList.remove('hidden');
+
+      // Reset Runtime Counters
+      GameState.matchRunning = true;
+      GameState.inHeadStart = true;
+      GameState.currentZoneRadius = GameState.startZoneRadius;
+      GameState.matchTimeRemaining = 3600; // 60:00 like the video
+      GameState.nextPingCountdown = GameState.pingIntervalSeconds;
+      GameState.nextShrinkCountdown = 75;
+      GameState.ghostActive = false;
+      GameState.ability1Charges = 1;
+      GameState.ability2Charges = 1;
+      GameState.radioLogs = [];
+
+      configurePlayerHUD();
+      initTacticalMap();
+
+      addRadioLog(`Match started! Runners have a ${GameState.headStartSeconds}s head start.`, 'system');
+    }
+
+    function configurePlayerHUD() {
+      const isHunter = GameState.myRole === 'hunter';
+      const roleBadge = document.getElementById('hud-role-badge');
+      roleBadge.textContent = isHunter ? 'HUNTER (IT)' : 'RUNNER';
+      roleBadge.className = isHunter
+        ? 'px-2.5 py-0.5 rounded-md font-bold mono text-xs uppercase tracking-wider bg-[#ff2a4b]/20 text-[#ff2a4b] border border-[#ff2a4b]/40'
+        : 'px-2.5 py-0.5 rounded-md font-bold mono text-xs uppercase tracking-wider bg-[#00f0ff]/20 text-[#00f0ff] border border-[#00f0ff]/40';
+
+      // Kill code badge
+      const kcPill = document.getElementById('hud-killcode-pill');
+      if (!isHunter && GameState.tagSystem === 'killcode') {
+        kcPill.classList.remove('hidden');
+        document.getElementById('hud-my-code').textContent = GameState.myKillCode;
+      } else {
+        kcPill.classList.add('hidden');
+      }
+
+      // Tactical Abilities Bar visibility & labels
+      const tacBar = document.getElementById('tactical-abilities-bar');
+      if (GameState.loadoutMode === 'tactical') {
+        tacBar.classList.remove('hidden');
+        if (isHunter) {
+          document.getElementById('ability-1-name').innerHTML = '📡 UAV Sweep';
+          document.getElementById('ability-1-desc').textContent = 'Scan Runners within 150m';
+          document.getElementById('ability-2-name').innerHTML = '🧭 Bloodhound';
+          document.getElementById('ability-2-desc').textContent = 'Compass to nearest Runner';
+        } else {
+          document.getElementById('ability-1-name').innerHTML = '👻 Ghost Cloak';
+          document.getElementById('ability-1-desc').textContent = 'Hide from next radar ping';
+          document.getElementById('ability-2-name').innerHTML = '🎯 Decoy Ping';
+          document.getElementById('ability-2-desc').textContent = 'Drop fake ping 100m away';
+        }
+        document.getElementById('ability-1-charges').textContent = '1x';
+        document.getElementById('ability-2-charges').textContent = '1x';
+      } else {
+        tacBar.classList.add('hidden');
+      }
+
+      // Primary Tag Button Label
+      const tagLabel = document.getElementById('btn-primary-tag-label');
+      tagLabel.textContent = isHunter ? 'Tag A Runner' : 'I Got Tagged';
+
+      // Sandbox tap hint
+      document.getElementById('sandbox-controls-hint').classList.toggle('hidden', GameState.engine !== 'sandbox');
+    }
+
+    function initTacticalMap() {
+      // Attempt to get real coordinates first
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            GameState.centerLat = pos.coords.latitude;
+            GameState.centerLng = pos.coords.longitude;
+            setupMapAndEntities();
+          },
+          () => {
+            setupMapAndEntities();
+          },
+          { enableHighAccuracy: true, timeout: 3500 }
+        );
+      } else {
+        setupMapAndEntities();
+      }
+    }
+
+    function setupMapAndEntities() {
+      if (GameState.map) {
+        GameState.map.remove();
+        GameState.map = null;
+      }
+
+      GameState.myLat = GameState.centerLat;
+      GameState.myLng = GameState.centerLng;
+
+      // Create Leaflet Map with CartoDB Dark Matter tiles
+      GameState.map = L.map('map', {
+        center: [GameState.centerLat, GameState.centerLng],
+        zoom: 16,
+        zoomControl: false
+      });
+
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        maxZoom: 20
+      }).addTo(GameState.map);
+
+      // Draw Shrinking Safe Zone Circle (Matches Red/Pink Circle in Video 0:15)
+      GameState.zoneCircle = L.circle([GameState.centerLat, GameState.centerLng], {
+        radius: GameState.currentZoneRadius,
+        color: '#ff2a4b',
+        weight: 3,
+        fillColor: '#ff2a4b',
+        fillOpacity: 0.07
+      }).addTo(GameState.map);
+
+      // Position Players around Center
+      GameState.players.forEach((p, i) => {
+        if (p.isMe) {
+          p.lat = GameState.centerLat;
+          p.lng = GameState.centerLng;
+        } else {
+          // Scatter bots slightly around starting point
+          const angle = (i / GameState.players.length) * Math.PI * 2;
+          const distMeters = 35 + Math.random() * 55;
+          const offset = metersToLatLngOffset(distMeters * Math.cos(angle), distMeters * Math.sin(angle), GameState.centerLat);
+          p.lat = GameState.centerLat + offset.dLat;
+          p.lng = GameState.centerLng + offset.dLng;
+          pickNewBotTarget(p);
+        }
+        p.lastPingLat = p.lat;
+        p.lastPingLng = p.lng;
+      });
+
+      // Map Click to Sprint (Sandbox Mode)
+      GameState.map.on('click', (e) => {
+        if (!GameState.matchRunning) return;
+        GameState.myTargetLat = e.latlng.lat;
+        GameState.myTargetLng = e.latlng.lng;
+      });
+
+      // Live GPS Watch if in Live Mode
+      if (GameState.engine === 'live' && navigator.geolocation) {
+        GameState.geoWatchId = navigator.geolocation.watchPosition((pos) => {
+          GameState.myLat = pos.coords.latitude;
+          GameState.myLng = pos.coords.longitude;
+          const me = GameState.players.find(p => p.isMe);
+          if (me) {
+            me.lat = GameState.myLat;
+            me.lng = GameState.myLng;
+          }
+          broadcastMyPosition();
+        }, null, { enableHighAccuracy: true });
+      }
+
+      renderAllMapMarkers();
+      updateHUDCounters();
+
+      // Start Master 1-Second Game Loop & Fast AI Physics Tick
+      if (GameState.loopInterval) clearInterval(GameState.loopInterval);
+      if (GameState.aiTickInterval) clearInterval(GameState.aiTickInterval);
+
+      GameState.loopInterval = setInterval(masterGameSecondTick, 1000);
+      GameState.aiTickInterval = setInterval(simulationPhysicsTick, 200);
+    }
+
+    // -----------------------------------------------------------
+    // 7. MASTER GAME LOOP (TIMERS, ZONE SHRINK, RADAR PINGS)
+    // -----------------------------------------------------------
+    function masterGameSecondTick() {
+      if (!GameState.matchRunning) return;
+
+      // 1. Handle Head Start Phase
+      if (GameState.inHeadStart) {
+        GameState.headStartSeconds--;
+        const phaseBadge = document.getElementById('hud-phase-badge');
+        phaseBadge.textContent = `HEAD START: ${GameState.headStartSeconds}s`;
+
+        if (GameState.headStartSeconds <= 0) {
+          GameState.inHeadStart = false;
+          phaseBadge.textContent = 'LIVE HUNT';
+          phaseBadge.className = 'px-2 py-0.5 rounded bg-[#ff2a4b]/20 text-[#ff2a4b] border border-[#ff2a4b]/40 mono text-[11px] animate-pulse';
+          SoundFX.alertAlarm();
+          addRadioLog('Head start is over. Hunters are out!', 'alert');
+          triggerGlobalRadarPing();
+        }
+        updateHUDCounters();
+        return;
+      }
+
+      // 2. Main Match Timer
+      GameState.matchTimeRemaining--;
+      if (GameState.matchTimeRemaining <= 0) {
+        endGameSession('TIME EXPIRED — SURVIVING RUNNERS WIN!');
+        return;
+      }
+
+      // 3. Next Radar Ping Countdown
+      GameState.nextPingCountdown--;
+      if (GameState.nextPingCountdown <= 0) {
+        triggerGlobalRadarPing();
+        GameState.nextPingCountdown = GameState.pingIntervalSeconds;
+      }
+
+      // 4. Zone Shrink Countdown
+      GameState.nextShrinkCountdown--;
+      if (GameState.nextShrinkCountdown <= 0) {
+        shrinkSafeZone();
+        GameState.nextShrinkCountdown = GameState.shrinkIntervalSeconds;
+      }
+
+      // 5. Check Proximity Heartbeat Sensor (Tactical Mode)
+      checkHeartbeatProximity();
+
+      // 6. Check Out-Of-Bounds Penalty
+      checkOutOfBoundsPenalty();
+
+      updateHUDCounters();
+    }
+
+    // Smooth movement tick for Sandbox tap-to-move and AI Operatives
+    function simulationPhysicsTick() {
+      if (!GameState.matchRunning) return;
+
+      const me = GameState.players.find(p => p.isMe);
+
+      // Move Local Player toward clicked map destination
+      if (GameState.myTargetLat !== null && GameState.myTargetLng !== null && me) {
+        const dist = getDistanceMeters(me.lat, me.lng, GameState.myTargetLat, GameState.myTargetLng);
+        if (dist < 4) {
+          GameState.myTargetLat = null;
+          GameState.myTargetLng = null;
+        } else {
+          const stepMeters = 2.8; // brisk sprint speed
+          const ratio = Math.min(1, stepMeters / dist);
+          me.lat += (GameState.myTargetLat - me.lat) * ratio;
+          me.lng += (GameState.myTargetLng - me.lng) * ratio;
+          GameState.myLat = me.lat;
+          GameState.myLng = me.lng;
+        }
+      }
+
+      // Move AI Operatives in Sandbox Mode
+      if (GameState.engine === 'sandbox') {
+        GameState.players.forEach(bot => {
+          if (bot.isMe || bot.status !== 'active') return;
+
+          // Hunters wait during head start
+          if (GameState.inHeadStart && bot.role === 'hunter') return;
+
+          const distToTarget = getDistanceMeters(bot.lat, bot.lng, bot.targetLat, bot.targetLng);
+          if (distToTarget < 8 || Math.random() < 0.03) {
+            pickNewBotTarget(bot);
+          }
+
+          const speed = bot.role === 'hunter' ? 2.1 : 1.85;
+          const ratio = Math.min(1, speed / Math.max(1, distToTarget));
+          bot.lat += (bot.targetLat - bot.lat) * ratio;
+          bot.lng += (bot.targetLng - bot.lng) * ratio;
+
+          // If AI Hunter gets within 8m of an AI Runner after head start, auto-tag occasionally
+          if (!GameState.inHeadStart && bot.role === 'hunter') {
+            GameState.players.forEach(prey => {
+              if (!prey.isMe && prey.role === 'runner' && prey.status === 'active') {
+                const d = getDistanceMeters(bot.lat, bot.lng, prey.lat, prey.lng);
+                if (d < 8 && Math.random() < 0.15) {
+                  handlePlayerTagged(prey.id, bot.name);
+                }
+              }
+            });
+          }
+        });
+      }
+
+      renderAllMapMarkers();
+    }
+
+    function pickNewBotTarget(bot) {
+      // Keep bots mostly inside the current safe zone
+      const safeRadius = Math.max(40, GameState.currentZoneRadius * 0.82);
+
+      // If bot is a Hunter and there are active Runners, bias movement toward a Runner's last ping
+      if (bot.role === 'hunter' && !GameState.inHeadStart) {
+        const activeRunners = GameState.players.filter(p => p.role === 'runner' && p.status === 'active');
+        if (activeRunners.length > 0 && Math.random() < 0.7) {
+          const targetRunner = activeRunners[Math.floor(Math.random() * activeRunners.length)];
+          const jitter = metersToLatLngOffset((Math.random() - 0.5) * 40, (Math.random() - 0.5) * 40, GameState.centerLat);
+          bot.targetLat = targetRunner.lastPingLat + jitter.dLat;
+          bot.targetLng = targetRunner.lastPingLng + jitter.dLng;
+          return;
+        }
+      }
+
+      const angle = Math.random() * Math.PI * 2;
+      const r = Math.random() * safeRadius;
+      const offset = metersToLatLngOffset(r * Math.cos(angle), r * Math.sin(angle), GameState.centerLat);
+      bot.targetLat = GameState.centerLat + offset.dLat;
+      bot.targetLng = GameState.centerLng + offset.dLng;
+    }
+
+    // -----------------------------------------------------------
+    // 8. RADAR PINGS, SHRINKING ZONE & TACTICAL SENSORS
+    // -----------------------------------------------------------
+    function triggerGlobalRadarPing() {
+      SoundFX.radarPing();
+      GameState.players.forEach(p => {
+        if (p.isMe && GameState.ghostActive) {
+          GameState.ghostActive = false;
+          addRadioLog(`${p.name} cloaked from radar sweep (Ghost Mode)!`, 'tactical');
+          return;
+        }
+        p.lastPingLat = p.lat;
+        p.lastPingLng = p.lng;
+      });
+      addRadioLog('Global radar ping broadcasted all operative coordinates.', 'ping');
+      renderAllMapMarkers(true);
+    }
+
+    function forceRadarPingNow() {
+      GameState.nextPingCountdown = GameState.pingIntervalSeconds;
+      triggerGlobalRadarPing();
+    }
+
+    function shrinkSafeZone() {
+      if (GameState.currentZoneRadius <= 80) return;
+      GameState.currentZoneRadius = Math.max(80, Math.round(GameState.currentZoneRadius * 0.78));
+      if (GameState.zoneCircle) {
+        GameState.zoneCircle.setRadius(GameState.currentZoneRadius);
+      }
+      SoundFX.alertAlarm();
+      addRadioLog(`Safe zone shrunk to ${GameState.currentZoneRadius}m radius! Stay inside!`, 'alert');
+      updateHUDCounters();
+    }
+
+    function forceZoneShrinkNow() {
+      GameState.nextShrinkCountdown = GameState.shrinkIntervalSeconds;
+      shrinkSafeZone();
+    }
+
+    function checkHeartbeatProximity() {
+      const mapWrapper = document.getElementById('map-wrapper');
+      const pill = document.getElementById('heartbeat-pill');
+
+      if (GameState.loadoutMode !== 'tactical' || GameState.myRole !== 'runner' || GameState.inHeadStart) {
+        mapWrapper.classList.remove('danger-heartbeat');
+        pill.classList.add('hidden');
+        return;
+      }
+
+      const me = GameState.players.find(p => p.isMe);
+      const hunters = GameState.players.filter(p => p.role === 'hunter' && p.status === 'active');
+      let closestDist = Infinity;
+
+      hunters.forEach(h => {
+        const d = getDistanceMeters(me.lat, me.lng, h.lat, h.lng);
+        if (d < closestDist) closestDist = d;
+      });
+
+      if (closestDist <= 45) {
+        mapWrapper.classList.add('danger-heartbeat');
+        pill.classList.remove('hidden');
+        document.getElementById('heartbeat-distance').textContent = `HUNTER NEAR: ${Math.round(closestDist)}m`;
+        SoundFX.heartbeat();
+        if (navigator.vibrate) navigator.vibrate([90, 60, 90]);
+      } else {
+        mapWrapper.classList.remove('danger-heartbeat');
+        pill.classList.add('hidden');
+      }
+    }
+
+    function checkOutOfBoundsPenalty() {
+      const me = GameState.players.find(p => p.isMe);
+      if (!me) return;
+      const distFromCenter = getDistanceMeters(GameState.centerLat, GameState.centerLng, me.lat, me.lng);
+      const oobBanner = document.getElementById('hud-oob-banner');
+
+      if (distFromCenter > GameState.currentZoneRadius) {
+        oobBanner.classList.remove('hidden');
+        me.lastPingLat = me.lat;
+        me.lastPingLng = me.lng;
+      } else {
+        oobBanner.classList.add('hidden');
+      }
+    }
+
+    // -----------------------------------------------------------
+    // 9. TACTICAL ABILITIES (GHOST, DECOY, UAV, BLOODHOUND)
+    // -----------------------------------------------------------
+    function activateAbility(slot) {
+      if (GameState.loadoutMode !== 'tactical') return;
+      const me = GameState.players.find(p => p.isMe);
+      if (!me || me.status !== 'active') return;
+
+      if (slot === 1) {
+        if (GameState.ability1Charges <= 0) return;
+        GameState.ability1Charges--;
+        document.getElementById('ability-1-charges').textContent = 'USED';
+        document.getElementById('btn-ability-1').classList.add('opacity-50');
+
+        if (GameState.myRole === 'runner') {
+          // Ghost Cloak
+          GameState.ghostActive = true;
+          SoundFX.playTone(920, 'sine', 0.25, 0.15);
+          addRadioLog(`${me.name} activated GHOST CLOAK (hidden from next ping).`, 'tactical');
+        } else {
+          // Hunter UAV Sweep (150m instant ping)
+          SoundFX.radarPing();
+          GameState.players.forEach(p => {
+            if (p.role === 'runner' && getDistanceMeters(me.lat, me.lng, p.lat, p.lng) <= 150) {
+              p.lastPingLat = p.lat;
+              p.lastPingLng = p.lng;
+            }
+          });
+          addRadioLog(`${me.name} deployed local UAV SWEEP (150m scan)!`, 'tactical');
+          renderAllMapMarkers(true);
+        }
+      } else if (slot === 2) {
+        if (GameState.ability2Charges <= 0) return;
+        GameState.ability2Charges--;
+        document.getElementById('ability-2-charges').textContent = 'USED';
+        document.getElementById('btn-ability-2').classList.add('opacity-50');
+
+        if (GameState.myRole === 'runner') {
+          // Decoy Ping 100m away
+          const angle = Math.random() * Math.PI * 2;
+          const offset = metersToLatLngOffset(95 * Math.cos(angle), 95 * Math.sin(angle), me.lat);
+          const decoyLat = me.lat + offset.dLat;
+          const decoyLng = me.lng + offset.dLng;
+
+          if (GameState.decoyMarker) GameState.map.removeLayer(GameState.decoyMarker);
+          const icon = L.divIcon({
+            className: 'player-marker',
+            html: `<div class="marker-dot bg-[#00f0ff] animate-ping"></div><div class="marker-label">${me.name} (DECOY)</div>`,
+            iconSize: [24, 24]
+          });
+          GameState.decoyMarker = L.marker([decoyLat, decoyLng], { icon }).addTo(GameState.map);
+          SoundFX.radarPing();
+          addRadioLog(`${me.name} deployed a false GPS Decoy Ping 100m away!`, 'tactical');
+        } else {
+          // Hunter Bloodhound Compass
+          const runners = GameState.players.filter(p => p.role === 'runner' && p.status === 'active');
+          if (runners.length === 0) return;
+          let nearest = runners[0];
+          let minDist = Infinity;
+          runners.forEach(r => {
+            const d = getDistanceMeters(me.lat, me.lng, r.lat, r.lng);
+            if (d < minDist) {
+              minDist = d;
+              nearest = r;
+            }
+          });
+
+          const bearing = getCompassDirection(me.lat, me.lng, nearest.lat, nearest.lng);
+          const banner = document.getElementById('bloodhound-banner');
+          document.getElementById('bloodhound-text').textContent =
+            `BLOODHOUND: ${nearest.name} IS ${Math.round(minDist)}m ${bearing}`;
+          banner.classList.remove('hidden');
+          SoundFX.radarPing();
+          setTimeout(() => banner.classList.add('hidden'), 10000);
+        }
+      }
+    }
+
+    // -----------------------------------------------------------
+    // 10. MAP MARKER RENDERING (MATCHES VIDEO STYLE + ROLES)
+    // -----------------------------------------------------------
+    function renderAllMapMarkers() {
+      if (!GameState.map) return;
+
+      GameState.players.forEach(p => {
+        if (p.status === 'eliminated') {
+          if (GameState.markers[p.id]) {
+            GameState.map.removeLayer(GameState.markers[p.id]);
+            delete GameState.markers[p.id];
+          }
+          return;
+        }
+
+        // Determine whether to show live coordinates or last ping coordinates
+        const isOutOfZone = getDistanceMeters(GameState.centerLat, GameState.centerLng, p.lat, p.lng) > GameState.currentZoneRadius;
+        const showLive = p.isMe || p.role === 'hunter' || isOutOfZone;
+        const displayLat = showLive ? p.lat : p.lastPingLat;
+        const displayLng = showLive ? p.lng : p.lastPingLng;
+
+        const dotColor = p.role === 'hunter' ? '#ff2a4b' : (p.isMe ? '#00f0ff' : '#38bdf8');
+        const labelText = p.isMe ? `YOU (${p.name})` : `${p.name}${isOutOfZone ? ' ⚠️' : ''}`;
+
+        const html = `
+          <div class="player-marker">
+            <div class="marker-dot" style="background:${dotColor}; box-shadow: 0 0 14px ${dotColor};"></div>
+            <div class="marker-label">${labelText}</div>
+          </div>
+        `;
+
+        if (!GameState.markers[p.id]) {
+          const icon = L.divIcon({ className: '', html, iconSize: [24, 24] });
+          GameState.markers[p.id] = L.marker([displayLat, displayLng], { icon }).addTo(GameState.map);
+        } else {
+          GameState.markers[p.id].setLatLng([displayLat, displayLng]);
+        }
+      });
+    }
+
+    function recenterMapOnMe() {
+      if (GameState.map) {
+        GameState.map.setView([GameState.myLat, GameState.myLng], 17, { animate: true });
+      }
+    }
+
+    // -----------------------------------------------------------
+    // 11. TAG VERIFICATION ENGINE (HONOR / 2-DIGIT CODE / PROXIMITY)
+    // -----------------------------------------------------------
+    function openTagModal() {
+      const me = GameState.players.find(p => p.isMe);
+      const body = document.getElementById('tag-modal-body');
+      const title = document.getElementById('tag-modal-title');
+      const subtitle = document.getElementById('tag-modal-subtitle');
+
+      const activeRunners = GameState.players.filter(p => p.role === 'runner' && p.status === 'active');
+
+      // If I am a Runner tapping "I Got Tagged"
+      if (me.role === 'runner') {
+        title.textContent = 'Confirm You Were Caught';
+        subtitle.textContent = GameState.gameMode === 'infection'
+          ? 'Infection Mode is active! Confirming will turn you into a Hunter.'
+          : 'Classic Elimination is active! Confirming will eliminate you into Spectator Mode.';
+        body.innerHTML = `
+          <button onclick="handlePlayerTagged('${me.id}', 'Hunter'); closeModal('modal-tag');"
+            class="w-full py-3.5 rounded-xl bg-[#ff2a4b] text-white font-bold text-sm uppercase tracking-wider">
+            Confirm — I Got Tagged
+          </button>
+        `;
+        openModal('modal-tag');
+        return;
+      }
+
+      // If I am a Hunter tagging a Runner
+      title.textContent = `Eliminate Runner (${GameState.tagSystem.toUpperCase()})`;
+
+      if (activeRunners.length === 0) {
+        body.innerHTML = `<div class="text-xs text-slate-400">No active Runners left!</div>`;
+        openModal('modal-tag');
+        return;
+      }
+
+      if (GameState.tagSystem === 'honor') {
+        subtitle.textContent = 'Honor System: Tap the Runner you physically tagged in person.';
+        body.innerHTML = activeRunners.map(r => `
+          <button onclick="handlePlayerTagged('${r.id}', '${me.name}'); closeModal('modal-tag');"
+            class="w-full p-3 rounded-xl glass-card hover:border-[#ff2a4b] flex items-center justify-between">
+            <span class="font-bold text-sm text-white">${r.name}</span>
+            <span class="mono text-xs px-2.5 py-1 rounded bg-[#ff2a4b]/20 text-[#ff2a4b]">Mark Tagged →</span>
+          </button>
+        `).join('');
+      } else if (GameState.tagSystem === 'killcode') {
+        subtitle.textContent = '2-Digit Kill Code: Enter the secret 2-digit pin shown on the caught Runner’s screen.';
+        body.innerHTML = activeRunners.map(r => `
+          <div class="p-3 rounded-xl glass-card flex items-center justify-between gap-2">
+            <div>
+              <div class="font-bold text-sm text-white">${r.name}</div>
+              <div class="text-[10px] mono text-slate-400">${GameState.engine === 'sandbox' ? `(Demo Hint: Code is ${r.killCode})` : 'Ask Runner for code'}</div>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <input id="code-input-${r.id}" type="text" maxlength="2" placeholder="00"
+                class="w-14 bg-slate-900 border border-white/20 rounded-lg px-2 py-1.5 text-center mono font-bold text-white text-sm outline-none" />
+              <button onclick="verifyRunnerKillCode('${r.id}')"
+                class="px-3 py-1.5 rounded-lg bg-[#ff2a4b] text-white font-bold text-xs mono">
+                Verify
+              </button>
+            </div>
+          </div>
+        `).join('');
+      } else if (GameState.tagSystem === 'proximity') {
+        subtitle.textContent = 'GPS Proximity Lock: You must be within 25 meters of the Runner on GPS to unlock their tag button.';
+        body.innerHTML = activeRunners.map(r => {
+          const dist = Math.round(getDistanceMeters(me.lat, me.lng, r.lat, r.lng));
+          const unlocked = dist <= 25;
+          return `
+            <div class="p-3 rounded-xl glass-card flex items-center justify-between">
+              <div>
+                <div class="font-bold text-sm text-white">${r.name}</div>
+                <div class="text-[11px] mono ${unlocked ? 'text-emerald-400' : 'text-amber-400'}">GPS Distance: ${dist}m</div>
+              </div>
+              <button ${unlocked ? `onclick="handlePlayerTagged('${r.id}', '${me.name}'); closeModal('modal-tag');"` : 'disabled'}
+                class="px-3 py-1.5 rounded-lg font-bold text-xs mono ${unlocked ? 'bg-[#ff2a4b] text-white' : 'bg-slate-800 text-slate-500 cursor-not-allowed'}">
+                ${unlocked ? 'TAG UNLOCKED' : 'LOCKED (>25m)'}
+              </button>
+            </div>
+          `;
+        }).join('');
+      }
+
+      openModal('modal-tag');
+    }
+
+    function verifyRunnerKillCode(runnerId) {
+      const runner = GameState.players.find(p => p.id === runnerId);
+      const inputEl = document.getElementById(`code-input-${runnerId}`);
+      if (!runner || !inputEl) return;
+
+      if (inputEl.value.trim() === runner.killCode) {
+        handlePlayerTagged(runner.id, GameState.myName);
+        closeModal('modal-tag');
+      } else {
+        SoundFX.alertAlarm();
+        inputEl.classList.add('border-[#ff2a4b]');
+      }
+    }
+
+    function handlePlayerTagged(runnerId, hunterName) {
+      const target = GameState.players.find(p => p.id === runnerId);
+      if (!target || target.status !== 'active') return;
+
+      SoundFX.alertAlarm();
+
+      if (GameState.gameMode === 'infection') {
+        target.role = 'hunter';
+        if (target.isMe) {
+          GameState.myRole = 'hunter';
+          configurePlayerHUD();
+        }
+        addRadioLog(`☣️ INFECTION: ${target.name} was caught by ${hunterName} and became a HUNTER!`, 'alert');
+      } else {
+        target.status = 'eliminated';
+        if (target.isMe) {
+          GameState.myRole = 'spectator';
+          document.getElementById('hud-role-badge').textContent = 'SPECTATOR';
+        }
+        addRadioLog(`💀 ELIMINATED: ${target.name} was tagged by ${hunterName}!`, 'alert');
+      }
+
+      renderAllMapMarkers();
+      updateHUDCounters();
+
+      // Check Victory Condition
+      const remainingRunners = GameState.players.filter(p => p.role === 'runner' && p.status === 'active');
+      if (remainingRunners.length === 0) {
+        endGameSession('ALL RUNNERS CAUGHT — HUNTERS WIN!');
+      }
+    }
+
+    // -----------------------------------------------------------
+    // 12. HUD COUNTERS, RADIO COMMS & MODALS
+    // -----------------------------------------------------------
+    function updateHUDCounters() {
+      document.getElementById('hud-time-left').textContent = formatMMSS(GameState.matchTimeRemaining);
+      document.getElementById('hud-ping-timer').textContent = formatMMSS(GameState.nextPingCountdown);
+      document.getElementById('hud-shrink-timer').textContent = formatMMSS(GameState.nextShrinkCountdown);
+      document.getElementById('hud-zone-radius').textContent = `${GameState.currentZoneRadius}m`;
+
+      const totalRunnersAtStart = Math.max(1, GameState.players.filter(p => p.role === 'runner' || p.status === 'eliminated').length);
+      const activeRunners = GameState.players.filter(p => p.role === 'runner' && p.status === 'active').length;
+
+      document.getElementById('hud-runners-count').textContent = `${activeRunners} active`;
+      const pct = Math.max(0, Math.min(100, (activeRunners / totalRunnersAtStart) * 100));
+      document.getElementById('hud-runners-bar').style.width = `${pct}%`;
+    }
+
+    function addRadioLog(text, type = 'info') {
+      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      GameState.radioLogs.unshift({ text, type, timeStr });
+      document.getElementById('radio-latest-msg').textContent = text;
+
+      const listEl = document.getElementById('radio-feed-list');
+      if (listEl) {
+        listEl.innerHTML = GameState.radioLogs.map(log => {
+          const color = log.type === 'alert' ? 'text-[#ff2a4b]' : (log.type === 'tactical' ? 'text-[#00f0ff]' : 'text-slate-200');
+          return `
+            <div class="p-2.5 rounded-xl bg-slate-900/90 border border-white/5 text-xs">
+              <div class="mono text-[10px] text-slate-500">${log.timeStr}</div>
+              <div class="${color} font-medium mt-0.5">${log.text}</div>
+            </div>
+          `;
+        }).join('');
+      }
+    }
+
+    function sendRadioQuickMsg(msg) {
+      SoundFX.playTone(680, 'sine', 0.08, 0.08);
+      addRadioLog(`${GameState.myName}: "${msg}"`, 'tactical');
+      closeModal('modal-radio');
+    }
+
+    function openModal(id) {
+      if (id === 'modal-roster') renderRosterModal();
+      document.getElementById(id).classList.remove('hidden');
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.add('hidden');
+    }
+
+    function renderRosterModal() {
+      const container = document.getElementById('roster-modal-list');
+      container.innerHTML = GameState.players.map(p => {
+        const badge = p.status === 'eliminated'
+          ? `<span class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 mono text-[10px]">CAUGHT</span>`
+          : (p.role === 'hunter'
+              ? `<span class="px-2 py-0.5 rounded bg-[#ff2a4b]/20 text-[#ff2a4b] mono text-[10px] font-bold">HUNTER</span>`
+              : `<span class="px-2 py-0.5 rounded bg-[#00f0ff]/20 text-[#00f0ff] mono text-[10px] font-bold">RUNNER</span>`);
+        return `
+          <div class="p-3 rounded-xl bg-slate-900/90 border border-white/5 flex items-center justify-between">
+            <span class="font-bold text-sm text-white">${p.name} ${p.isMe ? '(YOU)' : ''}</span>
+            ${badge}
+          </div>
+        `;
+      }).join('');
+    }
+
+    function endGameSession(reasonTitle) {
+      GameState.matchRunning = false;
+      if (GameState.loopInterval) clearInterval(GameState.loopInterval);
+      if (GameState.aiTickInterval) clearInterval(GameState.aiTickInterval);
+      if (GameState.geoWatchId && navigator.geolocation) navigator.geolocation.clearWatch(GameState.geoWatchId);
+
+      document.getElementById('gameover-title').textContent = reasonTitle;
+      document.getElementById('gameover-subtitle').textContent =
+        `Mode: ${GameState.gameMode.toUpperCase()} • Loadout: ${GameState.loadoutMode.toUpperCase()} • Tag System: ${GameState.tagSystem.toUpperCase()}`;
+      document.getElementById('gameover-stats').textContent =
+        `Final Zone Radius: ${GameState.currentZoneRadius}m`;
+
+      openModal('modal-gameover');
+    }
+
+    function resetToLobby() {
+      closeModal('modal-gameover');
+      document.getElementById('screen-game').classList.add('hidden');
+      document.getElementById('screen-lobby').classList.remove('hidden');
+      renderLobbyPlayers();
+    }
+
+    // -----------------------------------------------------------
+    // 13. GEOMETRY & NETWORK HELPERS
+    // -----------------------------------------------------------
+    function formatMMSS(totalSeconds) {
+      const s = Math.max(0, totalSeconds);
+      const mins = Math.floor(s / 60);
+      const secs = s % 60;
+      return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }
+
+    function getDistanceMeters(lat1, lon1, lat2, lon2) {
+      const R = 6371000;
+      const toRad = x => (x * Math.PI) / 180;
+      const dLat = toRad(lat2 - lat1);
+      const dLon = toRad(lon2 - lon1);
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    function metersToLatLngOffset(dxMeters, dyMeters, lat) {
+      const dLat = dyMeters / 111320;
+      const dLng = dxMeters / (111320 * Math.cos((lat * Math.PI) / 180));
+      return { dLat, dLng };
+    }
+
+    function getCompassDirection(lat1, lng1, lat2, lng2) {
+      const dy = lat2 - lat1;
+      const dx = Math.cos((lat1 * Math.PI) / 180) * (lng2 - lng1);
+      let angle = (Math.atan2(dx, dy) * 180) / Math.PI;
+      if (angle < 0) angle += 360;
+      const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+      return dirs[Math.round(angle / 45) % 8];
+    }
+
+    function broadcastMyPosition() {
+      if (!GameState.broadcastChannel) return;
+      GameState.broadcastChannel.postMessage({
+        type: 'POS_UPDATE',
+        id: GameState.myId,
+        name: GameState.myName,
+        lat: GameState.myLat,
+        lng: GameState.myLng
+      });
+    }
+
+    function handleNetworkMessage(data) {
+      if (!data || !data.type) return;
+      if (data.type === 'POS_UPDATE') {
+        let peer = GameState.players.find(p => p.id === data.id);
+        if (!peer) {
+          peer = {
+            id: data.id,
+            name: data.name,
+            isMe: false,
+            role: 'runner',
+            status: 'active',
+            lat: data.lat,
+            lng: data.lng,
+            lastPingLat: data.lat,
+            lastPingLng: data.lng,
+            killCode: '99'
+          };
+          GameState.players.push(peer);
+          renderLobbyPlayers();
+        } else {
+          peer.lat = data.lat;
+          peer.lng = data.lng;
+        }
+      }
+    }
+  </script>
+</body>
+</html>
