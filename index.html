@@ -8,17 +8,18 @@
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- Leaflet OpenStreetMap (100% Free & Keyless) -->
+  <!-- Leaflet Maps & Google Maps Tile Layer Support -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-  <!-- PeerJS for Real Phone-to-Phone Multiplayer over Internet -->
+  <!-- PeerJS & MQTT WebSocket Broker for 100% Reliable 4G/5G Multi-Phone Sync -->
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+  <script src="https://unpkg.com/mqtt@5.3.5/dist/mqtt.min.js"></script>
 
   <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
 
-  <!-- Clean Apple-style Inter & JetBrains Mono Fonts -->
+  <!-- Apple-Style Inter & JetBrains Mono Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 
   <style>
@@ -43,21 +44,17 @@
     .mono {
       font-family: 'JetBrains Mono', monospace;
     }
-
-    /* Native iOS Surface Cards */
     .ios-card {
       background: var(--ios-card);
       border: 1px solid var(--ios-border);
       border-radius: 18px;
     }
     .ios-sheet {
-      background: rgba(20, 20, 23, 0.94);
+      background: rgba(20, 20, 23, 0.95);
       backdrop-filter: blur(24px);
       -webkit-backdrop-filter: blur(24px);
       border: 1px solid rgba(255, 255, 255, 0.1);
     }
-
-    /* Segmented Pill Controls */
     .seg-group {
       background: #1c1c21;
       padding: 4px;
@@ -84,27 +81,13 @@
       color: #ffffff;
       box-shadow: 0 2px 12px rgba(255, 45, 85, 0.35);
     }
-    .seg-btn.active-green {
-      background: var(--emerald);
-      color: #052e16;
-      font-weight: 700;
-    }
-
-    /* Keyless OpenStreetMap Dark Filter (Never requires an API key) */
     #map {
       width: 100%;
       height: 100%;
       background: #0d1117;
       z-index: 1;
     }
-    .leaflet-tile-pane {
-      filter: invert(100%) hue-rotate(180deg) brightness(92%) contrast(92%) saturate(110%);
-    }
-    .leaflet-control-attribution {
-      display: none !important;
-    }
-
-    /* Fallback Tactical Radar Grid Background */
+    .leaflet-control-attribution { display: none !important; }
     .radar-grid-bg {
       background-color: #090d14;
       background-image:
@@ -113,8 +96,6 @@
         linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px);
       background-size: 24px 24px, 48px 48px, 48px 48px;
     }
-
-    /* Map Player Pins */
     .pin-wrap {
       position: relative;
       display: flex;
@@ -139,49 +120,31 @@
       border-radius: 6px;
       white-space: nowrap;
       border: 1px solid rgba(255,255,255,0.12);
-      box-shadow: 0 2px 6px rgba(0,0,0,0.4);
     }
-
-    /* Heartbeat Screen Edge Pulse */
-    @keyframes edgeHeartbeat {
+    @keyframes edgePulse {
       0%, 100% { box-shadow: inset 0 0 0px rgba(255, 45, 85, 0); }
       50% { box-shadow: inset 0 0 70px rgba(255, 45, 85, 0.55); }
     }
-    .heartbeat-active {
-      animation: edgeHeartbeat 0.85s infinite ease-in-out;
-    }
-
-    /* Mystery Question Mark Animation */
+    .heartbeat-active { animation: edgePulse 0.85s infinite ease-in-out; }
     @keyframes qPulse {
       0%, 100% { transform: scale(1); }
       50% { transform: scale(1.07); }
     }
-    .q-pulse {
-      animation: qPulse 1.1s infinite ease-in-out;
-    }
+    .q-pulse { animation: qPulse 1.1s infinite ease-in-out; }
   </style>
 </head>
 <body class="h-[100dvh] w-screen overflow-hidden flex flex-col bg-[#09090b]">
 
-  <!-- ========================================================= -->
-  <!-- GLOBAL TOP NOTIFICATION BANNER (Player Left / Role Shift) -->
-  <!-- ========================================================= -->
-  <div id="global-toast" class="hidden fixed top-4 left-1/2 -translate-x-1/2 z-[100] w-[92%] max-w-md ios-sheet px-4 py-3 rounded-2xl shadow-2xl border border-white/15 flex items-center gap-3 transition-all">
-    <div id="toast-icon" class="w-8 h-8 rounded-full bg-[#ff2d55]/20 text-[#ff2d55] flex items-center justify-center shrink-0">
+  <!-- Global Toast Banner -->
+  <div id="global-toast" class="hidden fixed top-4 left-1/2 -translate-x-1/2 z-[100] w-[92%] max-w-md ios-sheet px-4 py-3 rounded-2xl shadow-2xl border border-white/15 flex items-center gap-3">
+    <div class="w-8 h-8 rounded-full bg-[#ff2d55]/20 text-[#ff2d55] flex items-center justify-center shrink-0">
       <i data-lucide="bell" class="w-4 h-4"></i>
     </div>
-    <div class="flex-1 text-xs font-medium text-white leading-snug" id="toast-text">
-      Notification
-    </div>
+    <div class="flex-1 text-xs font-medium text-white leading-snug" id="toast-text">Notification</div>
   </div>
 
-
-  <!-- ========================================================= -->
-  <!-- SCREEN 1: HOME MENU                                       -->
-  <!-- ========================================================= -->
+  <!-- ================= SCREEN 1: HOME ================= -->
   <section id="screen-home" class="h-full w-full flex flex-col justify-between p-6 overflow-y-auto">
-    
-    <!-- Minimal Header -->
     <div class="flex items-center justify-between max-w-md mx-auto w-full pt-1">
       <div class="flex items-center gap-2">
         <span class="w-2 h-2 rounded-full bg-[#ff2d55]"></span>
@@ -192,41 +155,33 @@
       </div>
     </div>
 
-    <!-- Center Main Card -->
     <div class="my-auto py-6 max-w-md mx-auto w-full space-y-6">
-      
-      <!-- Brand Emblem & Title -->
       <div class="text-center space-y-2">
         <div class="w-16 h-16 rounded-2xl bg-[#ff2d55] mx-auto flex items-center justify-center shadow-[0_10px_30px_rgba(255,45,85,0.35)] mb-4">
           <i data-lucide="navigation" class="w-8 h-8 text-white"></i>
         </div>
         <h1 class="text-4xl font-black tracking-tight text-white">MANHUNT</h1>
         <p class="text-sm text-zinc-400 max-w-xs mx-auto leading-relaxed">
-          Real-world hide &amp; seek with a shrinking safe zone and live radar pings.
+          Real-world hide &amp; seek with shrinking safe zones, live radar pings, and zero interference.
         </p>
       </div>
 
-      <!-- Player Name Input -->
       <div class="ios-card p-4 space-y-3">
         <div>
           <label class="block text-xs font-semibold text-zinc-400 mb-1.5">Your Name</label>
           <input id="home-player-name" type="text" maxlength="15" placeholder="Enter your name..."
             class="w-full bg-zinc-900 border border-zinc-800 focus:border-white rounded-xl px-3.5 py-3 text-white font-semibold text-sm outline-none transition" />
         </div>
-
-        <!-- Primary Action: Create New Lobby -->
         <button onclick="createNewRealLobby()"
-          class="w-full py-3.5 rounded-xl bg-[#ff2d55] hover:bg-[#ff2d55]/90 active:scale-[0.99] text-white font-bold text-sm tracking-wide transition flex items-center justify-center gap-2 shadow-lg shadow-[#ff2d55]/25">
-          <i data-lucide="plus-circle" class="w-4 h-4"></i>
-          Create New Lobby
+          class="w-full py-3.5 rounded-xl bg-[#ff2d55] hover:bg-[#ff2d55]/90 text-white font-bold text-sm tracking-wide transition flex items-center justify-center gap-2 shadow-lg shadow-[#ff2d55]/25">
+          <i data-lucide="plus-circle" class="w-4 h-4"></i> Create New Lobby
         </button>
       </div>
 
-      <!-- Secondary Action: Join Existing Lobby by Code -->
       <div class="ios-card p-4 space-y-3">
         <label class="block text-xs font-semibold text-zinc-400">Have a Room Code?</label>
         <div class="flex gap-2">
-          <input id="home-join-code" type="text" maxlength="4" placeholder="4-Digit Code (e.g. 4821)"
+          <input id="home-join-code" type="text" maxlength="4" placeholder="4-Digit Code"
             class="flex-1 bg-zinc-900 border border-zinc-800 focus:border-white rounded-xl px-3.5 py-2.5 text-white font-bold mono text-sm tracking-widest uppercase outline-none" />
           <button onclick="joinExistingLobbyByCode()"
             class="px-5 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-semibold text-sm transition">
@@ -235,28 +190,20 @@
         </div>
       </div>
 
-      <!-- Subtle Practice Walkthrough Link (Only for solo testing/learning) -->
       <div class="text-center pt-2">
-        <button onclick="startPracticeWalkthrough()" class="text-xs text-zinc-500 hover:text-zinc-300 transition underline underline-offset-4">
-          Need to understand or test the game solo? Try Practice Walkthrough →
+        <button onclick="startInteractiveTutorial()" class="text-xs text-zinc-400 hover:text-white transition underline underline-offset-4 font-semibold">
+          First time? Launch 60-Second Interactive Tutorial →
         </button>
       </div>
-
     </div>
 
-    <!-- Bottom Footer -->
     <div class="text-center pb-1">
       <span class="text-[11px] text-zinc-600 font-medium">MANHUNT // ZERO • BUILT BY CHERRY</span>
     </div>
   </section>
 
-
-  <!-- ========================================================= -->
-  <!-- SCREEN 2: LOBBY SETUP (CLEAN iOS LAYOUT + QR INVITE)      -->
-  <!-- ========================================================= -->
+  <!-- ================= SCREEN 2: LOBBY ================= -->
   <section id="screen-lobby" class="hidden h-full w-full flex flex-col bg-[#09090b] overflow-hidden">
-    
-    <!-- Top iOS Navigation Bar -->
     <header class="px-4 py-3.5 border-b border-white/10 flex items-center justify-between bg-[#09090b]/90 backdrop-blur-md z-20">
       <button onclick="leaveLobbyToHome()" class="flex items-center gap-1 text-zinc-400 hover:text-white text-sm font-medium">
         <i data-lucide="chevron-left" class="w-5 h-5"></i> Back
@@ -270,237 +217,150 @@
       </button>
     </header>
 
-    <!-- Scrollable Lobby Settings -->
     <div class="flex-1 overflow-y-auto p-4 space-y-4 max-w-xl mx-auto w-full">
-
-      <!-- Practice Banner (Only visible if user clicked Practice Walkthrough) -->
-      <div id="practice-mode-banner" class="hidden p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between">
-        <div class="text-xs text-amber-200">
-          <strong>Practice Walkthrough:</strong> Simulated partners added so you can test the radar &amp; perks solo.
-        </div>
-        <button onclick="addSimulatedPartner()" class="ml-2 px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 text-xs font-semibold shrink-0">
-          +Sim Partner
-        </button>
+      
+      <!-- Host vs Joiner Notice Badge -->
+      <div id="lobby-host-banner" class="hidden p-3 rounded-2xl bg-zinc-900 border border-white/10 flex items-center justify-between text-xs text-zinc-300">
+        <span>👑 You are the <strong>Host</strong>. You control match settings.</span>
+      </div>
+      <div id="lobby-joiner-banner" class="hidden p-3 rounded-2xl bg-zinc-900 border border-white/10 flex items-center justify-between text-xs text-zinc-400">
+        <span>🔒 Settings are <strong>Host Controlled</strong>. You can view rules below.</span>
       </div>
 
-      <!-- 1. ZONE & TIMERS CARD -->
+      <!-- 1. ZONE & TIMERS -->
       <div class="ios-card p-4 space-y-3">
         <div class="flex items-center justify-between">
           <span class="text-xs font-bold uppercase tracking-wider text-zinc-400">Zone &amp; Timers</span>
           <span class="text-xs font-semibold text-zinc-300" id="lobby-timer-summary">500m • 5m Shrink</span>
         </div>
-
         <div class="grid grid-cols-3 gap-2.5">
           <div class="bg-zinc-900/90 p-2.5 rounded-xl border border-white/5">
             <div class="text-[11px] text-zinc-400 font-medium">Zone Size</div>
-            <select id="cfg-zone-size" onchange="saveLobbyConfig()" class="mt-1 w-full bg-transparent font-bold text-sm text-white outline-none">
-              <option value="300" class="bg-zinc-900">300m (Small)</option>
-              <option value="500" selected class="bg-zinc-900">500m (Medium)</option>
-              <option value="750" class="bg-zinc-900">750m (Large)</option>
+            <select id="cfg-zone-size" onchange="onHostChangeConfig()" class="mt-1 w-full bg-transparent font-bold text-sm text-white outline-none">
+              <option value="300" class="bg-zinc-900">300m</option>
+              <option value="500" selected class="bg-zinc-900">500m</option>
+              <option value="750" class="bg-zinc-900">750m</option>
             </select>
           </div>
-
           <div class="bg-zinc-900/90 p-2.5 rounded-xl border border-white/5">
             <div class="text-[11px] text-zinc-400 font-medium">Head Start</div>
-            <select id="cfg-headstart" onchange="saveLobbyConfig()" class="mt-1 w-full bg-transparent font-bold text-sm text-white outline-none">
-              <option value="15" class="bg-zinc-900">15 Sec (Quick)</option>
+            <select id="cfg-headstart" onchange="onHostChangeConfig()" class="mt-1 w-full bg-transparent font-bold text-sm text-white outline-none">
+              <option value="15" class="bg-zinc-900">15 Sec</option>
               <option value="60" class="bg-zinc-900">1 Min</option>
-              <option value="180" class="bg-zinc-900">3 Mins</option>
               <option value="300" selected class="bg-zinc-900">5 Mins</option>
             </select>
           </div>
-
           <div class="bg-zinc-900/90 p-2.5 rounded-xl border border-white/5">
             <div class="text-[11px] text-zinc-400 font-medium">Radar Ping</div>
-            <select id="cfg-ping" onchange="saveLobbyConfig()" class="mt-1 w-full bg-transparent font-bold text-sm text-white outline-none">
+            <select id="cfg-ping" onchange="onHostChangeConfig()" class="mt-1 w-full bg-transparent font-bold text-sm text-white outline-none">
               <option value="30" selected class="bg-zinc-900">Every 30s</option>
               <option value="60" class="bg-zinc-900">Every 60s</option>
-              <option value="120" class="bg-zinc-900">Every 2m</option>
             </select>
           </div>
         </div>
-        <p class="text-xs text-zinc-400 leading-relaxed">
-          Runners get a head start to hide. Once the hunt begins, the safe zone shrinks every 5 minutes and reveals anyone standing outside it.
-        </p>
       </div>
 
-      <!-- 2. GAME MODE SELECTOR (With Simple Explanation) -->
+      <!-- 2. GAME MODE -->
       <div class="ios-card p-4 space-y-2.5">
         <div class="text-xs font-bold uppercase tracking-wider text-zinc-400">Game Mode</div>
-        <div class="seg-group grid-cols-2">
-          <button onclick="selectRule('gameMode', 'classic')" id="seg-mode-classic" class="seg-btn active">
-            Classic Out
-          </button>
-          <button onclick="selectRule('gameMode', 'infection')" id="seg-mode-infection" class="seg-btn">
-            Infection
-          </button>
+        <div class="seg-group grid-cols-2" id="group-gameMode">
+          <button onclick="onHostSelectRule('gameMode', 'classic')" id="seg-mode-classic" class="seg-btn active">Classic Out</button>
+          <button onclick="onHostSelectRule('gameMode', 'infection')" id="seg-mode-infection" class="seg-btn">Infection</button>
         </div>
-        <p id="explain-gameMode" class="text-xs text-zinc-400 leading-relaxed pt-1">
-          <!-- Populated dynamically -->
-        </p>
+        <p id="explain-gameMode" class="text-xs text-zinc-400 leading-relaxed pt-1"></p>
       </div>
 
-      <!-- 3. PERKS & GADGETS SELECTOR (Simple Plain-English Explanation) -->
+      <!-- 3. PERKS & SENSORS -->
       <div class="ios-card p-4 space-y-2.5">
         <div class="text-xs font-bold uppercase tracking-wider text-zinc-400">Perks &amp; Sensors</div>
-        <div class="seg-group grid-cols-2">
-          <button onclick="selectRule('perkMode', 'standard')" id="seg-perk-standard" class="seg-btn active">
-            Standard (No Perks)
-          </button>
-          <button onclick="selectRule('perkMode', 'perks')" id="seg-perk-perks" class="seg-btn">
-            Perks Enabled
-          </button>
+        <div class="seg-group grid-cols-2" id="group-perkMode">
+          <button onclick="onHostSelectRule('perkMode', 'standard')" id="seg-perk-standard" class="seg-btn active">Standard</button>
+          <button onclick="onHostSelectRule('perkMode', 'perks')" id="seg-perk-perks" class="seg-btn">Perks Enabled</button>
         </div>
-        <div id="explain-perkMode" class="text-xs text-zinc-400 leading-relaxed pt-1 space-y-1.5">
-          <!-- Populated dynamically -->
-        </div>
+        <p id="explain-perkMode" class="text-xs text-zinc-400 leading-relaxed pt-1"></p>
       </div>
 
-      <!-- 4. HOW PLAYERS GET TAGGED (With Simple Explanation) -->
+      <!-- 4. TAGGING SYSTEM -->
       <div class="ios-card p-4 space-y-2.5">
-        <div class="text-xs font-bold uppercase tracking-wider text-zinc-400">How Tagging Works</div>
-        <div class="seg-group grid-cols-3">
-          <button onclick="selectRule('tagMode', 'confirm')" id="seg-tag-confirm" class="seg-btn active">
-            Tap Confirm
-          </button>
-          <button onclick="selectRule('tagMode', 'pin')" id="seg-tag-pin" class="seg-btn">
-            2-Digit PIN
-          </button>
-          <button onclick="selectRule('tagMode', 'gps')" id="seg-tag-gps" class="seg-btn">
-            GPS Nearby
-          </button>
+        <div class="text-xs font-bold uppercase tracking-wider text-zinc-400">Tagging System</div>
+        <div class="seg-group grid-cols-3" id="group-tagMode">
+          <button onclick="onHostSelectRule('tagMode', 'confirm')" id="seg-tag-confirm" class="seg-btn active">Tap Confirm</button>
+          <button onclick="onHostSelectRule('tagMode', 'pin')" id="seg-tag-pin" class="seg-btn">2-Digit PIN</button>
+          <button onclick="onHostSelectRule('tagMode', 'gps')" id="seg-tag-gps" class="seg-btn">GPS Nearby</button>
         </div>
-        <p id="explain-tagMode" class="text-xs text-zinc-400 leading-relaxed pt-1">
-          <!-- Populated dynamically -->
-        </p>
+        <p id="explain-tagMode" class="text-xs text-zinc-400 leading-relaxed pt-1"></p>
       </div>
 
-      <!-- 5. YOUR ROLE PREFERENCE -->
-      <div class="ios-card p-4 space-y-2.5">
-        <div class="text-xs font-bold uppercase tracking-wider text-zinc-400">Your Role Preference</div>
-        <div class="seg-group grid-cols-3">
-          <button onclick="selectMyRolePref('hunter')" id="seg-role-hunter" class="seg-btn">
-            Hunter
-          </button>
-          <button onclick="selectMyRolePref('runner')" id="seg-role-runner" class="seg-btn">
-            Runner
-          </button>
-          <button onclick="selectMyRolePref('random')" id="seg-role-random" class="seg-btn active-red">
-            Random
-          </button>
-        </div>
-        <p class="text-xs text-zinc-400">
-          With <span id="lobby-role-split-text">current players: 1 Hunter, rest Runners</span>.
-        </p>
-      </div>
-
-      <!-- 6. PLAYERS IN LOBBY + INVITE BUTTON -->
+      <!-- 5. PLAYERS & READY CHECK -->
       <div class="ios-card p-4 space-y-3">
         <div class="flex items-center justify-between">
           <div>
             <span class="text-xs font-bold uppercase tracking-wider text-zinc-400" id="lobby-players-header">Players (1)</span>
-            <p class="text-[11px] text-zinc-500 mt-0.5">Friends join by scanning your QR code or entering Room Code</p>
+            <p class="text-[11px] text-zinc-500 mt-0.5">All players must ready up before match can start</p>
           </div>
-          <button onclick="openInviteModal()" class="px-3 py-1.5 rounded-xl bg-white text-black font-bold text-xs flex items-center gap-1.5 shadow">
+          <button onclick="openInviteModal()" class="px-3 py-1.5 rounded-xl bg-white text-black font-bold text-xs flex items-center gap-1.5">
             <i data-lucide="user-plus" class="w-3.5 h-3.5"></i> Invite
           </button>
         </div>
-
-        <div id="lobby-players-container" class="divide-y divide-white/5">
-          <!-- Populated by JS -->
-        </div>
+        <div id="lobby-players-container" class="divide-y divide-white/5"></div>
       </div>
 
     </div>
 
-    <!-- Bottom Start Game Bar -->
+    <!-- Bottom Start Bar (Host Ready Check & Start) -->
     <div class="p-4 border-t border-white/10 bg-[#09090b]/95 backdrop-blur-md z-20">
-      <div class="max-w-xl mx-auto">
-        <button onclick="beginStartGameSequence()"
-          class="w-full py-4 rounded-2xl bg-[#ff2d55] hover:bg-[#ff2d55]/90 active:scale-[0.99] text-white font-bold text-base tracking-wide transition shadow-[0_8px_25px_rgba(255,45,85,0.35)]">
-          Start Game
+      <div class="max-w-xl mx-auto space-y-2">
+        <button id="btn-ready-toggle" onclick="toggleMyReadyState()"
+          class="w-full py-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-xs uppercase tracking-wider transition">
+          Tap to Ready Up (Waiting)
+        </button>
+        <button id="btn-host-start" onclick="hostTriggerStartGame()" disabled
+          class="w-full py-3.5 rounded-2xl bg-zinc-800 text-zinc-500 font-bold text-sm tracking-wide transition cursor-not-allowed">
+          Waiting for all players to ready up...
         </button>
       </div>
     </div>
   </section>
 
-
-  <!-- ========================================================= -->
-  <!-- SCREEN 3: FULLSCREEN ROLE REVEAL ("?" -> "You're it.")    -->
-  <!-- ========================================================= -->
+  <!-- ================= SCREEN 3: ROLE REVEAL ================= -->
   <section id="screen-reveal" class="hidden fixed inset-0 z-50 flex flex-col items-center justify-center p-6 bg-[#09090b] transition-colors duration-500">
-    
-    <!-- Step 1: Big "?" Card -->
     <div id="reveal-mystery" class="flex flex-col items-center text-center">
       <div class="text-[160px] font-black text-[#ff2d55] leading-none q-pulse select-none">?</div>
-      <p class="mt-6 text-xs font-semibold uppercase tracking-widest text-zinc-400">Selecting Hunters &amp; Runners...</p>
+      <p class="mt-6 text-xs font-semibold uppercase tracking-widest text-zinc-400">Randomly assigning roles...</p>
     </div>
-
-    <!-- Step 2: Final Role Screen -->
     <div id="reveal-final" class="hidden flex-col items-center text-center max-w-sm">
-      <div id="reveal-role-pill" class="px-3 py-1 rounded-full bg-black/25 text-white/90 text-xs font-bold uppercase tracking-widest mb-4">
-        ROLE ASSIGNED
-      </div>
-      <h1 id="reveal-main-heading" class="text-6xl font-black tracking-tight text-white leading-none">
-        You're it.
-      </h1>
-      <p id="reveal-sub-text" class="mt-4 text-sm font-medium text-white/90 leading-relaxed">
-        Wait for the Runners' head start to finish, then track their radar pings and tag them in person.
-      </p>
+      <div id="reveal-role-pill" class="px-3 py-1 rounded-full bg-black/25 text-white/90 text-xs font-bold uppercase tracking-widest mb-4">ROLE ASSIGNED</div>
+      <h1 id="reveal-main-heading" class="text-6xl font-black tracking-tight text-white leading-none">You're it.</h1>
+      <p id="reveal-sub-text" class="mt-4 text-sm font-medium text-white/90 leading-relaxed"></p>
     </div>
   </section>
 
-
-  <!-- ========================================================= -->
-  <!-- SCREEN 4: ACTIVE GAMEPLAY HUD & MAP                       -->
-  <!-- ========================================================= -->
+  <!-- ================= SCREEN 4: ACTIVE GAME HUD & MAP ================= -->
   <section id="screen-game" class="hidden relative h-full w-full flex flex-col overflow-hidden bg-[#09090b]">
-    
-    <!-- TOP COMPACT DASHBOARD (Clean iOS Header) -->
     <div class="relative z-20 bg-[#121215]/95 backdrop-blur-xl border-b border-white/10 px-4 pt-3 pb-3">
       <div class="max-w-2xl mx-auto">
-        
-        <!-- Top Row: Small Protected Menu Icon (Left), Role Badge (Center), PIN/Status (Right) -->
         <div class="flex items-center justify-between mb-2">
-          <!-- Small Gear/Menu Button so players never accidentally exit -->
-          <button onclick="openSafeMenuModal()" class="p-1.5 rounded-lg bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 flex items-center gap-1 text-xs font-medium" title="Game Menu">
+          <button onclick="openSafeMenuModal()" class="p-1.5 rounded-lg bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 flex items-center gap-1 text-xs font-medium">
             <i data-lucide="settings" class="w-4 h-4"></i>
           </button>
-
           <div class="flex items-center gap-2">
-            <span id="hud-my-role-badge" class="px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-              RUNNER
-            </span>
-            <span id="hud-phase-pill" class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/20 text-amber-300">
-              Head Start
-            </span>
+            <span id="hud-my-role-badge" class="px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-400">RUNNER</span>
+            <span id="hud-phase-pill" class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/20 text-amber-300">Head Start</span>
           </div>
-
-          <div id="hud-pin-display" class="px-2.5 py-0.5 rounded-lg bg-zinc-800 text-zinc-200 mono text-xs font-bold">
-            PIN: <span id="hud-my-pin" class="text-white">48</span>
-          </div>
+          <div id="hud-pin-display" class="px-2.5 py-0.5 rounded-lg bg-zinc-800 text-zinc-200 mono text-xs font-bold">PIN: <span id="hud-my-pin" class="text-white">48</span></div>
         </div>
 
-        <!-- Middle Row: Big Countdown Clock & Next Ping -->
         <div class="flex items-baseline justify-between">
           <div>
             <div class="text-[11px] font-medium text-zinc-400">Time left</div>
-            <div id="hud-clock" class="text-4xl font-black mono tracking-tight text-white leading-none mt-0.5">
-              58:39
-            </div>
+            <div id="hud-clock" class="text-4xl font-black mono tracking-tight text-white leading-none mt-0.5">58:39</div>
           </div>
-
           <div class="text-right">
-            <div class="text-[11px] font-medium text-zinc-400">
-              Next ping <span id="hud-next-ping" class="text-white font-bold mono ml-1">00:30</span>
-            </div>
-            <div class="text-[11px] text-zinc-400 mt-1">
-              Zone <span id="hud-zone-size" class="text-white font-semibold mono">500m</span> • shrinks in <span id="hud-zone-shrink" class="text-white font-semibold mono">04:59</span>
-            </div>
+            <div class="text-[11px] font-medium text-zinc-400">Next ping <span id="hud-next-ping" class="text-white font-bold mono ml-1">00:30</span></div>
+            <div class="text-[11px] text-zinc-400 mt-1">Zone <span id="hud-zone-size" class="text-white font-semibold mono">500m</span> • shrinks in <span id="hud-zone-shrink" class="text-white font-semibold mono">04:59</span></div>
           </div>
         </div>
 
-        <!-- Bottom Row: Runners Left Bar -->
         <div class="mt-2.5">
           <div class="flex items-center justify-between text-xs mb-1">
             <span class="text-zinc-400 font-medium">Runners left</span>
@@ -511,62 +371,53 @@
           </div>
         </div>
 
-        <!-- Out of Zone Alert Bar -->
         <div id="hud-zone-warning" class="hidden mt-2 px-3 py-1.5 rounded-xl bg-[#ff2d55] text-white text-xs font-bold flex items-center justify-between animate-pulse">
-          <span>⚠️ OUTSIDE THE ZONE! Hunters can see your live location!</span>
+          <span>⚠️ OUTSIDE THE ZONE! Live location exposed!</span>
           <span>GET IN</span>
         </div>
-
       </div>
     </div>
 
-    <!-- CENTER MAP & TACTICAL RADAR VIEW -->
+    <!-- Map & Tactical View -->
     <div id="map-container" class="relative flex-1 w-full overflow-hidden radar-grid-bg">
       <div id="map"></div>
 
-      <!-- Direction Pointer Banner (Hunter Perk) -->
       <div id="perk-compass-banner" class="hidden absolute top-3 left-1/2 -translate-x-1/2 z-20 ios-sheet px-4 py-2 rounded-full text-xs font-bold text-white flex items-center gap-2 shadow-xl">
         <i data-lucide="compass" class="w-4 h-4 text-[#ff2d55]"></i>
-        <span id="perk-compass-text">Closest Runner: 120m North-East</span>
+        <span id="perk-compass-text">Closest Runner: 120m</span>
       </div>
 
-      <!-- Heartbeat Sensor Warning Pill -->
       <div id="perk-heartbeat-banner" class="hidden absolute top-3 left-3 z-20 ios-sheet px-3 py-1.5 rounded-full border border-[#ff2d55]/50 flex items-center gap-2">
         <span class="w-2 h-2 rounded-full bg-[#ff2d55] animate-ping"></span>
-        <span id="perk-heartbeat-text" class="text-xs font-bold text-[#ff2d55]">Hunter Nearby (32m)</span>
+        <span id="perk-heartbeat-text" class="text-xs font-bold text-[#ff2d55]">💓 Hunter Nearby (32m)</span>
       </div>
 
-      <!-- Floating Map Controls (Recenter & Map/Radar View Toggle) -->
       <div class="absolute top-3 right-3 z-20 flex flex-col gap-2">
-        <button onclick="centerMapOnPlayer()" class="p-2.5 rounded-xl ios-sheet text-white shadow-lg" title="Center on My GPS">
+        <button onclick="centerMapOnPlayer()" class="p-2.5 rounded-xl ios-sheet text-white shadow-lg" title="Center on GPS">
           <i data-lucide="locate-fixed" class="w-5 h-5"></i>
         </button>
-        <button onclick="toggleMapTileStyle()" class="p-2.5 rounded-xl ios-sheet text-zinc-300 shadow-lg" title="Switch Street Map / Tactical Grid">
-          <i data-lucide="layers" class="w-5 h-5"></i>
+        <button onclick="toggleGoogleSatelliteView()" class="p-2.5 rounded-xl ios-sheet text-zinc-300 shadow-lg" title="Toggle Satellite View">
+          <i data-lucide="globe" class="w-5 h-5"></i>
         </button>
       </div>
 
-      <!-- Solo Practice Tap-to-Move Hint -->
       <div id="practice-move-hint" class="hidden absolute bottom-3 left-1/2 -translate-x-1/2 z-20 ios-sheet px-3.5 py-1.5 rounded-full text-[11px] text-zinc-300 font-medium">
-        Practice Mode: Tap anywhere on the map to move your pin
+        Tutorial Mode: Tap anywhere on map to move
       </div>
     </div>
 
-    <!-- BOTTOM SHEET DOCK (Perks, Tag Button, & Radio Feed) -->
+    <!-- Bottom Dock -->
     <div class="relative z-20 bg-[#121215] border-t border-white/10 px-4 pt-3 pb-4">
       <div class="max-w-2xl mx-auto space-y-2.5">
-
-        <!-- Perks Bar (Only visible when Perks Enabled in Lobby) -->
         <div id="game-perks-row" class="hidden grid-cols-2 gap-2.5">
-          <button id="btn-perk-1" onclick="usePerk(1)" class="ios-card p-2.5 flex items-center justify-between text-left active:scale-[0.98] transition">
+          <button id="btn-perk-1" onclick="usePerk(1)" class="ios-card p-2.5 flex items-center justify-between text-left">
             <div>
               <div id="perk-1-title" class="text-xs font-bold text-white">👻 Hide My Ping</div>
               <div id="perk-1-sub" class="text-[10px] text-zinc-400">Skip next radar reveal</div>
             </div>
             <span id="perk-1-badge" class="px-2 py-0.5 rounded-md bg-white/10 text-white mono text-[10px] font-bold">1 Left</span>
           </button>
-
-          <button id="btn-perk-2" onclick="usePerk(2)" class="ios-card p-2.5 flex items-center justify-between text-left active:scale-[0.98] transition">
+          <button id="btn-perk-2" onclick="usePerk(2)" class="ios-card p-2.5 flex items-center justify-between text-left">
             <div>
               <div id="perk-2-title" class="text-xs font-bold text-white">🎭 Fake Spot</div>
               <div id="perk-2-sub" class="text-[10px] text-zinc-400">Drop decoy 100m away</div>
@@ -575,19 +426,17 @@
           </button>
         </div>
 
-        <!-- Radio Event Ticker -->
         <div onclick="openModal('modal-radio')" class="cursor-pointer px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-white/5 flex items-center justify-between">
           <div class="flex items-center gap-2 truncate">
             <span class="text-xs font-bold text-white">Radio</span>
-            <span id="hud-radio-preview" class="text-xs text-zinc-400 truncate">Runners have a head start!</span>
+            <span id="hud-radio-preview" class="text-xs text-zinc-400 truncate">Match started!</span>
           </div>
           <span class="text-xs font-semibold text-zinc-400 shrink-0 ml-2">Chat →</span>
         </div>
 
-        <!-- Main Action Button ("I got tagged" / "Tag Runner") + Players List -->
         <div class="flex items-center gap-2.5">
           <button onclick="openTaggingSheet()" id="btn-main-tag"
-            class="flex-1 py-3.5 px-4 rounded-2xl bg-[#ff2d55] hover:bg-[#ff2d55]/90 active:scale-[0.99] text-white font-bold text-sm tracking-wide transition shadow-lg shadow-[#ff2d55]/25">
+            class="flex-1 py-3.5 px-4 rounded-2xl bg-[#ff2d55] hover:bg-[#ff2d55]/90 text-white font-bold text-sm tracking-wide shadow-lg shadow-[#ff2d55]/25">
             I got tagged
           </button>
           <button onclick="openPlayersSheet()" class="py-3.5 px-4 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-white font-semibold text-sm flex items-center gap-1.5">
@@ -595,280 +444,149 @@
             <span id="hud-total-players-btn">1</span>
           </button>
         </div>
-
       </div>
     </div>
   </section>
 
-
-  <!-- ========================================================= -->
-  <!-- MODAL A: INVITE FRIENDS (QR CODE + SHARE LINK + PIN)      -->
-  <!-- ========================================================= -->
+  <!-- ================= MODALS ================= -->
   <div id="modal-invite" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-5">
     <div class="ios-sheet w-full max-w-sm rounded-3xl p-6 text-center space-y-4">
       <div class="flex items-center justify-between">
-        <h3 class="font-bold text-base text-white">Invite Friends to Lobby</h3>
-        <button onclick="closeModal('modal-invite')" class="p-1 text-zinc-400 hover:text-white">
-          <i data-lucide="x" class="w-5 h-5"></i>
-        </button>
+        <h3 class="font-bold text-base text-white">Invite Friends</h3>
+        <button onclick="closeModal('modal-invite')" class="p-1 text-zinc-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
       </div>
-
-      <p class="text-xs text-zinc-400">
-        Friends can scan this QR code with their phone camera or enter the 4-digit Room Code to join immediately.
-      </p>
-
-      <!-- Scannable QR Code Image -->
+      <p class="text-xs text-zinc-400">Scan QR code or enter Room Code to join instantly.</p>
       <div class="bg-white p-3.5 rounded-2xl w-48 h-48 mx-auto flex items-center justify-center shadow-inner">
-        <img id="invite-qr-img" src="" alt="Lobby QR Code" class="w-full h-full object-contain rounded-lg" />
+        <img id="invite-qr-img" src="" alt="QR Code" class="w-full h-full object-contain rounded-lg" />
       </div>
-
-      <!-- 4-Digit Room Code Display -->
       <div class="bg-zinc-900 border border-white/10 rounded-2xl py-3 px-4">
-        <div class="text-[11px] uppercase tracking-wider text-zinc-400 font-semibold">4-Digit Room Code</div>
+        <div class="text-[11px] uppercase tracking-wider text-zinc-400 font-semibold">Room Code</div>
         <div id="invite-room-pin" class="text-3xl font-black mono tracking-widest text-white mt-0.5">4821</div>
       </div>
-
-      <!-- Copy Link & Native Share Buttons -->
       <div class="grid grid-cols-2 gap-2.5 pt-1">
-        <button onclick="copyInviteLink()" id="btn-copy-link" class="py-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-semibold text-xs flex items-center justify-center gap-1.5">
+        <button onclick="copyInviteLink()" id="btn-copy-link" class="py-3 rounded-xl bg-zinc-800 text-white font-semibold text-xs flex items-center justify-center gap-1.5">
           <i data-lucide="copy" class="w-4 h-4"></i> Copy Link
         </button>
         <button onclick="shareNativeInvite()" class="py-3 rounded-xl bg-[#ff2d55] text-white font-bold text-xs flex items-center justify-center gap-1.5">
-          <i data-lucide="share-2" class="w-4 h-4"></i> Share Invite
+          <i data-lucide="share-2" class="w-4 h-4"></i> Share
         </button>
       </div>
     </div>
   </div>
 
-
-  <!-- ========================================================= -->
-  <!-- MODAL B: SAFE MENU & 2-STEP LEAVE GAME CONFIRMATION       -->
-  <!-- ========================================================= -->
   <div id="modal-safe-menu" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-5">
     <div class="ios-sheet w-full max-w-sm rounded-3xl p-5 space-y-4">
       <div class="flex items-center justify-between">
         <h3 class="font-bold text-base text-white">Game Options</h3>
-        <button onclick="closeModal('modal-safe-menu')" class="p-1 text-zinc-400 hover:text-white">
-          <i data-lucide="x" class="w-5 h-5"></i>
-        </button>
+        <button onclick="closeModal('modal-safe-menu')" class="p-1 text-zinc-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
       </div>
-
-      <!-- Step 0: Normal Menu Options -->
       <div id="leave-step-0" class="space-y-2.5">
         <div class="p-3 rounded-2xl bg-zinc-900/90 border border-white/5 text-xs text-zinc-300 space-y-1">
           <div>Room Code: <strong id="menu-room-code" class="text-white mono">#4821</strong></div>
-          <div id="menu-rules-summary" class="text-zinc-400">Classic Mode • Standard Rules</div>
         </div>
-
-        <button onclick="openInviteModal(); closeModal('modal-safe-menu');" class="w-full py-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-semibold text-xs flex items-center justify-center gap-2">
+        <button onclick="openInviteModal(); closeModal('modal-safe-menu');" class="w-full py-3 rounded-xl bg-zinc-800 text-white font-semibold text-xs flex items-center justify-center gap-2">
           <i data-lucide="qr-code" class="w-4 h-4"></i> Show Room QR Code
         </button>
-
-        <button onclick="showLeaveConfirmationStep1()" class="w-full py-3 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 font-semibold text-xs flex items-center justify-center gap-2">
-          <i data-lucide="log-out" class="w-4 h-4"></i> Leave Match / Main Menu
+        <button onclick="showLeaveConfirmationStep1()" class="w-full py-3 rounded-xl bg-rose-500/15 text-rose-400 font-semibold text-xs flex items-center justify-center gap-2">
+          <i data-lucide="log-out" class="w-4 h-4"></i> Leave Match
         </button>
       </div>
-
-      <!-- Step 1: First Confirmation -->
       <div id="leave-step-1" class="hidden space-y-3 text-center">
-        <div class="w-12 h-12 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center mx-auto">
-          <i data-lucide="alert-triangle" class="w-6 h-6"></i>
-        </div>
+        <div class="w-12 h-12 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center mx-auto"><i data-lucide="alert-triangle" class="w-6 h-6"></i></div>
         <h4 class="font-bold text-sm text-white">Are you sure you want to leave?</h4>
-        <p class="text-xs text-zinc-400 leading-relaxed">
-          You are currently in an active match. Step 1 of 2 confirmation required so you don't exit by accident.
-        </p>
         <div class="grid grid-cols-2 gap-2 pt-1">
-          <button onclick="closeModal('modal-safe-menu')" class="py-3 rounded-xl bg-zinc-800 text-white font-semibold text-xs">
-            Stay in Game
-          </button>
-          <button onclick="showLeaveConfirmationStep2()" class="py-3 rounded-xl bg-amber-500 text-black font-bold text-xs">
-            Yes, Continue
-          </button>
+          <button onclick="closeModal('modal-safe-menu')" class="py-3 rounded-xl bg-zinc-800 text-white font-semibold text-xs">Stay</button>
+          <button onclick="showLeaveConfirmationStep2()" class="py-3 rounded-xl bg-amber-500 text-black font-bold text-xs">Yes, Continue</button>
         </div>
       </div>
-
-      <!-- Step 2: Second & Final Confirmation -->
       <div id="leave-step-2" class="hidden space-y-3 text-center">
-        <div class="w-12 h-12 rounded-full bg-[#ff2d55]/20 text-[#ff2d55] flex items-center justify-center mx-auto">
-          <i data-lucide="shield-alert" class="w-6 h-6"></i>
-        </div>
+        <div class="w-12 h-12 rounded-full bg-[#ff2d55]/20 text-[#ff2d55] flex items-center justify-center mx-auto"><i data-lucide="shield-alert" class="w-6 h-6"></i></div>
         <h4 class="font-bold text-sm text-white">Final Confirmation (2 of 2)</h4>
-        <p id="leave-step-2-desc" class="text-xs text-zinc-300 leading-relaxed">
-          Leaving now will notify all players in the lobby. If you are the only Hunter, the Hunter role will automatically transfer to another player.
-        </p>
+        <p class="text-xs text-zinc-300">Leaving will notify all players. If you are the Hunter, the role will auto-transfer.</p>
         <div class="grid grid-cols-2 gap-2 pt-1">
-          <button onclick="closeModal('modal-safe-menu')" class="py-3 rounded-xl bg-zinc-800 text-white font-semibold text-xs">
-            Cancel
-          </button>
-          <button onclick="confirmFinalLeaveGame()" class="py-3 rounded-xl bg-[#ff2d55] text-white font-bold text-xs">
-            Confirm Exit
-          </button>
+          <button onclick="closeModal('modal-safe-menu')" class="py-3 rounded-xl bg-zinc-800 text-white font-semibold text-xs">Cancel</button>
+          <button onclick="confirmFinalLeaveGame()" class="py-3 rounded-xl bg-[#ff2d55] text-white font-bold text-xs">Confirm Exit</button>
         </div>
       </div>
-
     </div>
   </div>
 
-
-  <!-- ========================================================= -->
-  <!-- MODAL C: TAG VERIFICATION SHEET                           -->
-  <!-- ========================================================= -->
   <div id="modal-tag" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-4">
     <div class="ios-sheet w-full max-w-md rounded-3xl p-5 space-y-4">
       <div class="flex items-center justify-between">
         <h3 id="tag-sheet-title" class="font-bold text-base text-white">Confirm Tag</h3>
-        <button onclick="closeModal('modal-tag')" class="p-1 text-zinc-400 hover:text-white">
-          <i data-lucide="x" class="w-5 h-5"></i>
-        </button>
+        <button onclick="closeModal('modal-tag')" class="p-1 text-zinc-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
       </div>
-      <p id="tag-sheet-desc" class="text-xs text-zinc-400 leading-relaxed"></p>
+      <p id="tag-sheet-desc" class="text-xs text-zinc-400"></p>
       <div id="tag-sheet-content" class="space-y-2.5"></div>
     </div>
   </div>
 
-
-  <!-- ========================================================= -->
-  <!-- MODAL D: RADIO FEED & QUICK CHAT                          -->
-  <!-- ========================================================= -->
   <div id="modal-radio" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-4">
     <div class="ios-sheet w-full max-w-md rounded-3xl p-5 flex flex-col max-h-[80vh]">
       <div class="flex items-center justify-between pb-3 border-b border-white/10">
         <h3 class="font-bold text-base text-white">Live Radio</h3>
-        <button onclick="closeModal('modal-radio')" class="p-1 text-zinc-400 hover:text-white">
-          <i data-lucide="x" class="w-5 h-5"></i>
-        </button>
+        <button onclick="closeModal('modal-radio')" class="p-1 text-zinc-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
       </div>
       <div id="radio-messages-list" class="flex-1 overflow-y-auto py-3 space-y-2 max-h-64"></div>
       <div class="grid grid-cols-2 gap-2 pt-2 border-t border-white/10">
-        <button onclick="sendQuickRadio('I see a Hunter nearby!')" class="p-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-xs text-left text-zinc-200 truncate">
-          👀 "Hunter nearby!"
-        </button>
-        <button onclick="sendQuickRadio('Zone is shrinking, move!')" class="p-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-xs text-left text-zinc-200 truncate">
-          🏃‍♂️ "Zone shrinking!"
-        </button>
-        <button onclick="sendQuickRadio('That was a close call!')" class="p-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-xs text-left text-zinc-200 truncate">
-          🔥 "Close call!"
-        </button>
-        <button onclick="sendQuickRadio('Closing in on the last ping!')" class="p-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-xs text-left text-zinc-200 truncate">
-          🎯 "On the ping!"
-        </button>
+        <button onclick="sendQuickRadio('Hunter nearby!')" class="p-2.5 rounded-xl bg-zinc-900 text-xs text-left text-zinc-200">👀 Hunter nearby!</button>
+        <button onclick="sendQuickRadio('Zone shrinking!')" class="p-2.5 rounded-xl bg-zinc-900 text-xs text-left text-zinc-200">🏃‍♂️ Zone shrinking!</button>
       </div>
     </div>
   </div>
 
-
-  <!-- ========================================================= -->
-  <!-- MODAL E: ACTIVE PLAYERS LIST                              -->
-  <!-- ========================================================= -->
   <div id="modal-players" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-end sm:items-center justify-center p-4">
     <div class="ios-sheet w-full max-w-md rounded-3xl p-5 space-y-4">
       <div class="flex items-center justify-between">
         <h3 class="font-bold text-base text-white">Players in Match</h3>
-        <button onclick="closeModal('modal-players')" class="p-1 text-zinc-400 hover:text-white">
-          <i data-lucide="x" class="w-5 h-5"></i>
-        </button>
+        <button onclick="closeModal('modal-players')" class="p-1 text-zinc-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
       </div>
       <div id="active-players-list" class="space-y-2 max-h-72 overflow-y-auto"></div>
     </div>
   </div>
 
-
-  <!-- ========================================================= -->
-  <!-- MODAL F: REDESIGNED POST-GAME MATCH SUMMARY CARD          -->
-  <!-- ========================================================= -->
   <div id="modal-summary" class="hidden fixed inset-0 z-50 bg-black/90 backdrop-blur-xl flex items-center justify-center p-5">
     <div class="ios-sheet w-full max-w-sm rounded-3xl p-6 border border-white/15 space-y-5">
-      
-      <!-- Top Status Pill -->
       <div class="flex items-center justify-between">
-        <span class="px-2.5 py-1 rounded-full bg-white/10 text-[10px] font-bold uppercase tracking-widest text-zinc-300">
-          MATCH REPORT
-        </span>
-        <span class="text-[11px] font-semibold text-zinc-400">Room #<span id="sum-room">4821</span></span>
+        <span class="px-2.5 py-1 rounded-full bg-white/10 text-[10px] font-bold uppercase text-zinc-300">MATCH REPORT</span>
+        <span class="text-[11px] text-zinc-400">Room #<span id="sum-room">4821</span></span>
       </div>
-
-      <!-- Main Winner Headline -->
       <div>
-        <h2 id="sum-winner-title" class="text-3xl font-black tracking-tight text-white">RUNNERS WIN</h2>
-        <p id="sum-winner-reason" class="text-xs text-zinc-400 mt-1 leading-relaxed">
-          Survived until the timer hit zero.
-        </p>
+        <h2 id="sum-winner-title" class="text-3xl font-black text-white">RUNNERS WIN</h2>
+        <p id="sum-winner-reason" class="text-xs text-zinc-400 mt-1">Survived until the timer hit zero.</p>
       </div>
-
-      <!-- Stat Grid -->
-      <div class="grid grid-cols-2 gap-2.5">
-        <div class="bg-zinc-900/90 p-3 rounded-2xl border border-white/5">
-          <div class="text-[11px] text-zinc-400">Final Safe Zone</div>
-          <div id="sum-final-zone" class="text-lg font-extrabold text-white mono mt-0.5">220m</div>
-        </div>
-        <div class="bg-zinc-900/90 p-3 rounded-2xl border border-white/5">
-          <div class="text-[11px] text-zinc-400">Survivors Left</div>
-          <div id="sum-survivors" class="text-lg font-extrabold text-emerald-400 mono mt-0.5">2</div>
-        </div>
-      </div>
-
-      <!-- Match Highlights / Timeline -->
-      <div class="bg-zinc-900/90 p-3.5 rounded-2xl border border-white/5 space-y-1.5">
-        <div class="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Match Highlights</div>
-        <div id="sum-timeline" class="text-xs text-zinc-300 space-y-1 max-h-28 overflow-y-auto"></div>
-      </div>
-
-      <!-- Crafted By Cherry Signature -->
-      <div class="pt-1 flex items-center justify-between text-[11px] text-zinc-500 border-t border-white/10">
-        <span>MANHUNT // ZERO</span>
-        <span class="text-zinc-300 font-semibold">Crafted by Cherry</span>
-      </div>
-
-      <button onclick="returnToLobbyFromSummary()" class="w-full py-3.5 rounded-2xl bg-white text-black font-bold text-sm tracking-wide">
-        Back to Lobby
-      </button>
+      <button onclick="returnToLobbyFromSummary()" class="w-full py-3.5 rounded-2xl bg-white text-black font-bold text-sm">Back to Lobby</button>
     </div>
   </div>
 
-
-  <!-- ========================================================= -->
-  <!-- CORE JAVASCRIPT ENGINE (PERSISTENCE + WEBRTC + MAP)       -->
-  <!-- ========================================================= -->
+  <!-- ================= CORE JAVASCRIPT ENGINE ================= -->
   <script>
     lucide.createIcons();
+    const STORAGE_KEY = 'MANHUNT_ZERO_CHERRY_STATE_V4';
 
-    const STORAGE_KEY = 'MANHUNT_ZERO_CHERRY_STATE_V3';
-
-    // -----------------------------------------------------------
-    // 1. SIMPLE PLAIN-ENGLISH RULE EXPLANATIONS
-    // -----------------------------------------------------------
-    const SIMPLE_EXPLANATIONS = {
+    const SIMPLE_EXPS = {
       gameMode: {
-        classic: `<strong class="text-white">Classic Out:</strong> When a Runner gets tagged, they are out for the rest of the game and can watch the live map. The last Runner left (or anyone still free when time runs out) wins.`,
-        infection: `<strong class="text-white">Infection Mode:</strong> When a Runner gets tagged, they switch sides and become a Hunter too! Every catch makes the hunting team bigger.`
+        classic: "Caught Runners are out for the rest of the game. Last Runner left wins.",
+        infection: "Caught Runners switch teams and become Hunters too!"
       },
       perkMode: {
-        standard: `<strong class="text-white">Standard Rules:</strong> Pure hide-and-seek. No special buttons or warnings—just the shrinking zone and regular map pings.`,
-        perks: `
-          <div class="text-white font-semibold mb-1">Each player gets 1-time simple perks + danger sensor:</div>
-          <div>💓 <strong>Danger Heartbeat:</strong> Your phone vibrates if a Hunter gets within 40 meters of you.</div>
-          <div>👻 <strong>Hide My Ping (Runner):</strong> Stay invisible on the next map update.</div>
-          <div>🎭 <strong>Fake Spot (Runner):</strong> Drop a fake pin 100m away to trick Hunters.</div>
-          <div>📡 <strong>Instant Scan &amp; Pointer (Hunter):</strong> Scan nearby Runners or get a direction arrow.</div>
-        `
+        standard: "Pure hide-and-seek. No special abilities—just zone and pings.",
+        perks: "Includes Danger Heartbeat, Hide My Ping, Fake Spot, and UAV Scans."
       },
       tagMode: {
-        confirm: `<strong class="text-white">Tap Confirm:</strong> Simple &amp; fast. When caught in person, the Runner taps "I got tagged" (or the Hunter marks them out).`,
-        pin: `<strong class="text-white">2-Digit PIN:</strong> Anti-cheat mode. Each Runner has a secret 2-digit number on their screen. The Hunter must catch them and type that PIN to tag them out.`,
-        gps: `<strong class="text-white">GPS Nearby:</strong> The tag button stays locked until both phones are within 25 meters of each other on GPS.`
+        confirm: "Fast and simple: Runner taps 'I got tagged' when caught in person.",
+        pin: "Anti-cheat: Runner has a secret 2-digit PIN; Hunter must enter it to tag out.",
+        gps: "Tag button unlocks only when phones are within 25 meters on GPS."
       }
     };
 
-    // -----------------------------------------------------------
-    // 2. SOUND SYNTHESIZER (Subtle Haptic & Audio Cues)
-    // -----------------------------------------------------------
     const SFX = {
       ctx: null,
       beep(freq = 520, dur = 0.14, type = 'sine', vol = 0.14) {
         try {
-          const AudioCtx = window.AudioContext || window.webkitAudioContext;
-          if (!this.ctx && AudioCtx) this.ctx = new AudioCtx();
+          const AC = window.AudioContext || window.webkitAudioContext;
+          if (!this.ctx && AC) this.ctx = new AC();
           if (!this.ctx) return;
           const o = this.ctx.createOscillator();
           const g = this.ctx.createGain();
@@ -876,11 +594,9 @@
           o.frequency.setValueAtTime(freq, this.ctx.currentTime);
           g.gain.setValueAtTime(vol, this.ctx.currentTime);
           g.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + dur);
-          o.connect(g);
-          g.connect(this.ctx.destination);
-          o.start();
-          o.stop(this.ctx.currentTime + dur);
-        } catch (e) {}
+          o.connect(g); g.connect(this.ctx.destination);
+          o.start(); o.stop(this.ctx.currentTime + dur);
+        } catch(e){}
       },
       ping() {
         this.beep(880, 0.25, 'sine', 0.18);
@@ -893,32 +609,31 @@
       alert() {
         this.beep(480, 0.2, 'sawtooth', 0.16);
         setTimeout(() => this.beep(360, 0.25, 'sawtooth', 0.16), 160);
+      },
+      tick() {
+        this.beep(1046.5, 0.08, 'sine', 0.1);
       }
     };
 
-    // -----------------------------------------------------------
-    // 3. STATE OBJECT (Auto-saved to localStorage for Refresh Persistence)
-    // -----------------------------------------------------------
     let State = {
-      screen: 'home',          // 'home' | 'lobby' | 'game'
-      isPractice: false,       // false = Real Multiplayer Lobby (0 bots!), true = Solo Practice Walkthrough
+      screen: 'home',
+      isTutorial: false,
+      isHost: false,
       roomCode: '4821',
       myId: 'u_' + Math.random().toString(36).substring(2, 9),
-      myName: 'Cherry',
-      myRolePref: 'random',    // 'hunter' | 'runner' | 'random'
-      myRole: 'runner',        // 'hunter' | 'runner' | 'spectator'
+      myName: '',
+      myRole: 'runner',
       myPin: String(Math.floor(10 + Math.random() * 89)),
+      isReady: false,
 
-      // Rules
-      gameMode: 'classic',     // 'classic' | 'infection'
-      perkMode: 'standard',    // 'standard' | 'perks'
-      tagMode: 'confirm',      // 'confirm' | 'pin' | 'gps'
+      gameMode: 'classic',
+      perkMode: 'standard',
+      tagMode: 'confirm',
       startZoneRadius: 500,
       currentZoneRadius: 500,
       headStartTotal: 300,
       pingInterval: 30,
 
-      // Match Counters
       matchActive: false,
       inHeadStart: true,
       headStartLeft: 300,
@@ -926,330 +641,356 @@
       nextPingLeft: 30,
       nextShrinkLeft: 300,
 
-      // Perks Remaining
       perk1Left: 1,
       perk2Left: 1,
       hideNextPing: false,
 
-      // Coordinates (Defaults to central urban coordinates until GPS locks)
       centerLat: 12.9716,
       centerLng: 77.5946,
       myLat: 12.9716,
       myLng: 77.5946,
 
-      // Players List & Radio Logs
       players: [],
       radioLogs: []
     };
 
-    // Non-serialized Runtime Objects
     let mapInstance = null;
     let tileLayerInstance = null;
-    let mapTilesVisible = true;
+    let satelliteLayerInstance = null;
+    let isSatelliteView = false;
     let zoneCircleInstance = null;
     let mapMarkers = {};
     let decoyPinInstance = null;
     let gameTimerInterval = null;
-    let practiceSimInterval = null;
+    let tutorialSimInterval = null;
     let geoWatchId = null;
-    let localChannel = null;
-    let peerInstance = null;
-    let hostConnections = [];
-    let clientConnection = null;
+    let mqttClient = null;
+    let wakeLockObj = null;
 
-    // -----------------------------------------------------------
-    // 4. PERSISTENCE ENGINE (Prevents Refresh from Closing Game!)
-    // -----------------------------------------------------------
-    function saveStateToStorage() {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(State));
-      } catch (e) {}
+    function saveState() {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(State)); } catch(e){}
     }
-
-    function loadStateFromStorage() {
+    function loadState() {
       try {
         const raw = localStorage.getItem(STORAGE_KEY);
         if (!raw) return false;
         const saved = JSON.parse(raw);
-        if (saved && saved.myId) {
-          State = { ...State, ...saved };
-          return true;
-        }
-      } catch (e) {}
+        if (saved && saved.myId) { State = { ...State, ...saved }; return true; }
+      } catch(e){}
       return false;
     }
 
-    function showToast(message) {
-      const toast = document.getElementById('global-toast');
-      document.getElementById('toast-text').textContent = message;
-      toast.classList.remove('hidden');
+    function showToast(msg) {
+      const t = document.getElementById('global-toast');
+      document.getElementById('toast-text').textContent = msg;
+      t.classList.remove('hidden');
       SFX.alert();
-      setTimeout(() => {
-        toast.classList.add('hidden');
-      }, 4500);
+      setTimeout(() => t.classList.add('hidden'), 4500);
     }
 
-    // -----------------------------------------------------------
-    // 5. BOOTSTRAP ON PAGE LOAD (Checks URL ?room=XXXX or Saved Session)
-    // -----------------------------------------------------------
     window.addEventListener('DOMContentLoaded', () => {
-      const hadSaved = loadStateFromStorage();
-      document.getElementById('home-player-name').value = State.myName || 'Cherry';
+      const hadSaved = loadState();
+      document.getElementById('home-player-name').value = State.myName || '';
 
-      // Check if opened via a shared QR Code / Invite Link (?room=1234)
-      const params = new URLSearchParams(window.location.search);
-      const urlRoom = params.get('room');
+      const p = new URLSearchParams(window.location.search);
+      const urlRoom = p.get('room');
       if (urlRoom && urlRoom.length === 4) {
         document.getElementById('home-join-code').value = urlRoom;
-        if (State.screen === 'home') {
-          showToast(`Invite link detected for Room #${urlRoom}. Enter your name and tap Join!`);
-        }
       }
 
-      // Restore active Lobby or Live Game if the user refreshed the page!
-      if (hadSaved && State.screen === 'lobby') {
-        restoreLobbyView();
-      } else if (hadSaved && State.screen === 'game' && State.matchActive) {
-        restoreActiveGameView();
-      }
+      if (hadSaved && State.screen === 'lobby') restoreLobbyView();
+      else if (hadSaved && State.screen === 'game' && State.matchActive) restoreActiveGameView();
+
+      requestScreenWakeLock();
     });
 
-    // -----------------------------------------------------------
-    // 6. HOME SCREEN ACTIONS (Real Lobby vs Join vs Solo Practice)
-    // -----------------------------------------------------------
-    function getEnteredPlayerName() {
-      const val = document.getElementById('home-player-name').value.trim();
-      State.myName = val || 'Cherry';
-      return State.myName;
+    async function requestScreenWakeLock() {
+      if ('wakeLock' in navigator) {
+        try { wakeLockObj = await navigator.wakeLock.request('screen'); } catch(e){}
+      }
     }
 
-    // REAL LOBBY: Starts with ONLY the Host (1 Player). Zero fake bots!
+    function getValidatedName() {
+      const name = document.getElementById('home-player-name').value.trim();
+      if (!name) {
+        showToast('Please enter your name first!');
+        document.getElementById('home-player-name').focus();
+        return null;
+      }
+      State.myName = name;
+      return name;
+    }
+
+    // --- REALTIME MQTT CLOUD SYNC ---
+    function initRealtimeCloudSync() {
+      try {
+        if (mqttClient) mqttClient.end();
+        mqttClient = mqtt.connect('wss://broker.emqx.io:8084/mqtt');
+        mqttClient.on('connect', () => {
+          mqttClient.subscribe(`manhunt/zero/${State.roomCode}`);
+          broadcastState();
+        });
+        mqttClient.on('message', (topic, payload) => {
+          try {
+            const data = JSON.parse(payload.toString());
+            handleNetworkPacket(data);
+          } catch(e){}
+        });
+      } catch(e){}
+    }
+
+    function publishPacket(packet) {
+      if (mqttClient && mqttClient.connected) {
+        mqttClient.publish(`manhunt/zero/${State.roomCode}`, JSON.stringify(packet));
+      }
+    }
+
+    function broadcastState() {
+      publishPacket({
+        type: 'STATE_SYNC',
+        isHost: State.isHost,
+        gameMode: State.gameMode,
+        perkMode: State.perkMode,
+        tagMode: State.tagMode,
+        startZoneRadius: State.startZoneRadius,
+        headStartTotal: State.headStartTotal,
+        pingInterval: State.pingInterval,
+        players: State.players
+      });
+    }
+
+    function handleNetworkPacket(data) {
+      if (!data || !data.type) return;
+      if (data.type === 'STATE_SYNC') {
+        if (!State.isHost) {
+          State.gameMode = data.gameMode;
+          State.perkMode = data.perkMode;
+          State.tagMode = data.tagMode;
+          State.startZoneRadius = data.startZoneRadius;
+          State.headStartTotal = data.headStartTotal;
+          State.pingInterval = data.pingInterval;
+          State.players = data.players;
+          saveState();
+          if (State.screen === 'lobby') restoreLobbyView();
+        }
+      } else if (data.type === 'JOIN_LOBBY') {
+        if (State.isHost) {
+          const exists = State.players.some(x => x.id === data.player.id);
+          if (!exists) {
+            State.players.push(data.player);
+            showToast(`${data.player.name} joined the lobby!`);
+            saveState();
+            broadcastState();
+            renderLobbyPlayerList();
+          }
+        }
+      } else if (data.type === 'KICK_PLAYER') {
+        if (data.targetId === State.myId) {
+          showToast('You were removed from the lobby by the Host.');
+          leaveLobbyToHome();
+        }
+      } else if (data.type === 'START_GAME') {
+        State.players = data.players;
+        const me = State.players.find(x => x.id === State.myId);
+        if (me) State.myRole = me.role;
+        runRoleRevealOverlay();
+      } else if (data.type === 'POS_UPDATE') {
+        const p = State.players.find(x => x.id === data.id);
+        if (p) {
+          p.lat = data.lat;
+          p.lng = data.lng;
+          renderMapPins();
+        }
+      } else if (data.type === 'TAG_RESULT') {
+        applyTagResult(data.runnerId, data.hunterName, false);
+      } else if (data.type === 'PLAYER_EXIT') {
+        handleRemoteExit(data.playerId, data.playerName);
+      } else if (data.type === 'RADIO_BROADCAST') {
+        pushRadioMsg(data.text, false);
+      }
+    }
+
+    // --- HOME ACTIONS ---
     function createNewRealLobby() {
-      getEnteredPlayerName();
-      State.isPractice = false;
+      if (!getValidatedName()) return;
+      State.isTutorial = false;
+      State.isHost = true;
+      State.isReady = true;
       State.roomCode = String(Math.floor(1000 + Math.random() * 9000));
       State.screen = 'lobby';
-      State.players = [
-        {
-          id: State.myId,
-          name: State.myName,
-          isHost: true,
-          rolePref: State.myRolePref,
-          role: 'runner',
-          status: 'active',
-          lat: State.centerLat,
-          lng: State.centerLng,
-          pingLat: State.centerLat,
-          pingLng: State.centerLng,
-          pin: State.myPin
-        }
-      ];
-      saveStateToStorage();
-      restoreLobbyView();
-      initRealtimeNetworking(true);
-    }
-
-    // JOIN EXISTING LOBBY BY 4-DIGIT CODE
-    function joinExistingLobbyByCode() {
-      getEnteredPlayerName();
-      const codeInput = document.getElementById('home-join-code').value.trim();
-      if (codeInput.length !== 4) {
-        showToast('Please enter a valid 4-digit Room Code.');
-        return;
-      }
-      State.isPractice = false;
-      State.roomCode = codeInput;
-      State.screen = 'lobby';
-      State.players = [
-        {
-          id: State.myId,
-          name: State.myName,
-          isHost: false,
-          rolePref: State.myRolePref,
-          role: 'runner',
-          status: 'active',
-          lat: State.centerLat,
-          lng: State.centerLng,
-          pingLat: State.centerLat,
-          pingLng: State.centerLng,
-          pin: State.myPin
-        }
-      ];
-      saveStateToStorage();
-      restoreLobbyView();
-      initRealtimeNetworking(false);
-    }
-
-    // PRACTICE WALKTHROUGH: Subtle link for testing solo
-    function startPracticeWalkthrough() {
-      getEnteredPlayerName();
-      State.isPractice = true;
-      State.roomCode = 'DEMO';
-      State.headStartTotal = 15;
-      document.getElementById('cfg-headstart').value = '15';
-      State.screen = 'lobby';
-      State.players = [
-        {
-          id: State.myId,
-          name: State.myName,
-          isHost: true,
-          rolePref: State.myRolePref,
-          role: 'runner',
-          status: 'active',
-          lat: State.centerLat,
-          lng: State.centerLng,
-          pingLat: State.centerLat,
-          pingLng: State.centerLng,
-          pin: State.myPin
-        }
-      ];
-      // Add 3 clearly-labeled practice partners only in Practice Walkthrough
-      ['Alex (Sim)', 'Maya (Sim)', 'Liam (Sim)'].forEach(simName => {
-        State.players.push({
-          id: 'sim_' + Math.random().toString(36).substring(2, 7),
-          name: simName,
-          isHost: false,
-          isSim: true,
-          rolePref: 'random',
-          role: 'runner',
-          status: 'active',
-          lat: State.centerLat,
-          lng: State.centerLng,
-          pingLat: State.centerLat,
-          pingLng: State.centerLng,
-          pin: String(Math.floor(10 + Math.random() * 89))
-        });
-      });
-      saveStateToStorage();
-      restoreLobbyView();
-    }
-
-    function addSimulatedPartner() {
-      const names = ['Noah (Sim)', 'Zoe (Sim)', 'Ethan (Sim)', 'Aria (Sim)', 'Leo (Sim)'];
-      const pick = names[State.players.length % names.length];
-      State.players.push({
-        id: 'sim_' + Math.random().toString(36).substring(2, 7),
-        name: pick,
-        isHost: false,
-        isSim: true,
-        rolePref: 'random',
+      State.players = [{
+        id: State.myId,
+        name: State.myName,
+        isHost: true,
+        isReady: true,
         role: 'runner',
         status: 'active',
         lat: State.centerLat,
         lng: State.centerLng,
         pingLat: State.centerLat,
         pingLng: State.centerLng,
-        pin: String(Math.floor(10 + Math.random() * 89))
-      });
-      saveStateToStorage();
-      renderLobbyPlayerList();
+        pin: State.myPin
+      }];
+      saveState();
+      restoreLobbyView();
+      initRealtimeCloudSync();
     }
 
-    // -----------------------------------------------------------
-    // 7. LOBBY UI & DYNAMIC EXPLANATIONS
-    // -----------------------------------------------------------
+    function joinExistingLobbyByCode() {
+      if (!getValidatedName()) return;
+      const code = document.getElementById('home-join-code').value.trim();
+      if (code.length !== 4) { showToast('Enter a valid 4-digit Room Code.'); return; }
+
+      State.isTutorial = false;
+      State.isHost = false;
+      State.isReady = false;
+      State.roomCode = code;
+      State.screen = 'lobby';
+      State.players = [{
+        id: State.myId,
+        name: State.myName,
+        isHost: false,
+        isReady: false,
+        role: 'runner',
+        status: 'active',
+        lat: State.centerLat,
+        lng: State.centerLng,
+        pingLat: State.centerLat,
+        pingLng: State.centerLng,
+        pin: State.myPin
+      }];
+      saveState();
+      restoreLobbyView();
+      initRealtimeCloudSync();
+      publishPacket({
+        type: 'JOIN_LOBBY',
+        player: State.players[0]
+      });
+    }
+
+    function startInteractiveTutorial() {
+      if (!getValidatedName()) return;
+      State.isTutorial = true;
+      State.isHost = true;
+      State.isReady = true;
+      State.roomCode = 'TUTOR';
+      State.headStartTotal = 10;
+      State.screen = 'lobby';
+      State.players = [
+        { id: State.myId, name: State.myName, isHost: true, isReady: true, role: 'runner', status: 'active', lat: State.centerLat, lng: State.centerLng, pingLat: State.centerLat, pingLng: State.centerLng, pin: State.myPin },
+        { id: 'sim_1', name: 'Maya (Bot)', isHost: false, isReady: true, role: 'hunter', status: 'active', lat: State.centerLat, lng: State.centerLng, pingLat: State.centerLat, pingLng: State.centerLng, pin: '99' }
+      ];
+      saveState();
+      restoreLobbyView();
+    }
+
+    // --- LOBBY VIEW & HOST CONTROLS ---
     function restoreLobbyView() {
       document.getElementById('screen-home').classList.add('hidden');
       document.getElementById('screen-game').classList.add('hidden');
       document.getElementById('screen-lobby').classList.remove('hidden');
 
-      document.getElementById('lobby-subtitle-tag').textContent =
-        State.isPractice ? 'Practice Walkthrough' : `Room #${State.roomCode}`;
+      document.getElementById('lobby-subtitle-tag').textContent = State.isTutorial ? 'Interactive Tutorial' : `Room #${State.roomCode}`;
+      document.getElementById('lobby-host-banner').classList.toggle('hidden', !State.isHost);
+      document.getElementById('lobby-joiner-banner').classList.toggle('hidden', State.isHost);
 
-      document.getElementById('practice-mode-banner').classList.toggle('hidden', !State.isPractice);
-
-      // Sync Rule Segmented Buttons & Explanations
-      selectRule('gameMode', State.gameMode, false);
-      selectRule('perkMode', State.perkMode, false);
-      selectRule('tagMode', State.tagMode, false);
-      selectMyRolePref(State.myRolePref, false);
+      // Lock/Unlock Config for Host vs Joiner
+      ['cfg-zone-size', 'cfg-headstart', 'cfg-ping'].forEach(id => {
+        document.getElementById(id).disabled = !State.isHost;
+      });
 
       document.getElementById('cfg-zone-size').value = String(State.startZoneRadius);
       document.getElementById('cfg-headstart').value = String(State.headStartTotal);
       document.getElementById('cfg-ping').value = String(State.pingInterval);
 
-      saveLobbyConfig(false);
+      updateRuleButtonsVisuals('gameMode', State.gameMode);
+      updateRuleButtonsVisuals('perkMode', State.perkMode);
+      updateRuleButtonsVisuals('tagMode', State.tagMode);
+
       renderLobbyPlayerList();
+      updateReadyAndStartButtons();
     }
 
     function leaveLobbyToHome() {
       State.screen = 'home';
       State.matchActive = false;
-      saveStateToStorage();
+      saveState();
       document.getElementById('screen-lobby').classList.add('hidden');
       document.getElementById('screen-home').classList.remove('hidden');
     }
 
-    function selectRule(group, value, persist = true) {
-      State[group] = value;
-
-      if (group === 'gameMode') {
-        document.getElementById('seg-mode-classic').className = `seg-btn ${value === 'classic' ? 'active' : ''}`;
-        document.getElementById('seg-mode-infection').className = `seg-btn ${value === 'infection' ? 'active-red' : ''}`;
-      } else if (group === 'perkMode') {
-        document.getElementById('seg-perk-standard').className = `seg-btn ${value === 'standard' ? 'active' : ''}`;
-        document.getElementById('seg-perk-perks').className = `seg-btn ${value === 'perks' ? 'active' : ''}`;
-      } else if (group === 'tagMode') {
-        ['confirm', 'pin', 'gps'].forEach(k => {
-          document.getElementById(`seg-tag-${k}`).className = `seg-btn ${value === k ? 'active' : ''}`;
-        });
-      }
-
-      const expEl = document.getElementById(`explain-${group}`);
-      if (expEl && SIMPLE_EXPLANATIONS[group][value]) {
-        expEl.innerHTML = SIMPLE_EXPLANATIONS[group][value];
-      }
-
-      if (persist) {
-        saveStateToStorage();
-        broadcastLobbyState();
-      }
-    }
-
-    function selectMyRolePref(pref, persist = true) {
-      State.myRolePref = pref;
-      ['hunter', 'runner', 'random'].forEach(r => {
-        const btn = document.getElementById(`seg-role-${r}`);
-        btn.className = 'seg-btn';
-        if (r === pref) {
-          btn.classList.add(pref === 'hunter' ? 'active-red' : (pref === 'runner' ? 'active-green' : 'active'));
-        }
-      });
-
-      const me = State.players.find(p => p.id === State.myId);
-      if (me) me.rolePref = pref;
-
-      renderLobbyPlayerList();
-      if (persist) {
-        saveStateToStorage();
-        broadcastLobbyState();
-      }
-    }
-
-    function saveLobbyConfig(persist = true) {
+    function onHostChangeConfig() {
+      if (!State.isHost) return;
       State.startZoneRadius = parseInt(document.getElementById('cfg-zone-size').value, 10) || 500;
       State.headStartTotal = parseInt(document.getElementById('cfg-headstart').value, 10) || 300;
       State.pingInterval = parseInt(document.getElementById('cfg-ping').value, 10) || 30;
 
       const hsText = State.headStartTotal >= 60 ? `${State.headStartTotal / 60}m Headstart` : `${State.headStartTotal}s Headstart`;
       document.getElementById('lobby-timer-summary').textContent = `${State.startZoneRadius}m • ${hsText}`;
+      saveState();
+      broadcastState();
+    }
 
-      if (persist) {
-        saveStateToStorage();
-        broadcastLobbyState();
+    function onHostSelectRule(group, val) {
+      if (!State.isHost) {
+        showToast('Only the Host can change match rules.');
+        return;
       }
+      State[group] = val;
+      updateRuleButtonsVisuals(group, val);
+      saveState();
+      broadcastState();
+    }
+
+    function updateRuleButtonsVisuals(group, val) {
+      if (group === 'gameMode') {
+        document.getElementById('seg-mode-classic').className = `seg-btn ${val === 'classic' ? 'active' : ''}`;
+        document.getElementById('seg-mode-infection').className = `seg-btn ${val === 'infection' ? 'active-red' : ''}`;
+      } else if (group === 'perkMode') {
+        document.getElementById('seg-perk-standard').className = `seg-btn ${val === 'standard' ? 'active' : ''}`;
+        document.getElementById('seg-perk-perks').className = `seg-btn ${val === 'perks' ? 'active' : ''}`;
+      } else if (group === 'tagMode') {
+        ['confirm', 'pin', 'gps'].forEach(k => {
+          document.getElementById(`seg-tag-${k}`).className = `seg-btn ${val === k ? 'active' : ''}`;
+        });
+      }
+      document.getElementById(`explain-${group}`).textContent = SIMPLE_EXPS[group][val];
+    }
+
+    function toggleMyReadyState() {
+      State.isReady = !State.isReady;
+      const me = State.players.find(x => x.id === State.myId);
+      if (me) me.isReady = State.isReady;
+
+      const btn = document.getElementById('btn-ready-toggle');
+      if (State.isReady) {
+        btn.textContent = '✓ Ready Confirmed';
+        btn.className = 'w-full py-3 rounded-xl bg-emerald-600 text-white font-bold text-xs uppercase tracking-wider transition';
+      } else {
+        btn.textContent = 'Tap to Ready Up';
+        btn.className = 'w-full py-3 rounded-xl bg-zinc-800 text-white font-bold text-xs uppercase tracking-wider transition';
+      }
+
+      saveState();
+      if (State.isHost) broadcastState();
+      renderLobbyPlayerList();
+      updateReadyAndStartButtons();
+    }
+
+    function hostKickPlayer(targetId) {
+      if (!State.isHost) return;
+      State.players = State.players.filter(x => x.id !== targetId);
+      saveState();
+      broadcastState();
+      publishPacket({ type: 'KICK_PLAYER', targetId });
+      renderLobbyPlayerList();
+      updateReadyAndStartButtons();
     }
 
     function renderLobbyPlayerList() {
-      const count = State.players.length;
-      document.getElementById('lobby-players-header').textContent = `Players (${count})`;
-
-      const huntersCount = count >= 6 ? 2 : 1;
-      const runnersCount = Math.max(0, count - huntersCount);
-      document.getElementById('lobby-role-split-text').textContent =
-        `${count} player${count > 1 ? 's' : ''}: ${huntersCount} Hunter, ${runnersCount} Runner${runnersCount !== 1 ? 's' : ''}`;
-
       const container = document.getElementById('lobby-players-container');
+      document.getElementById('lobby-players-header').textContent = `Players (${State.players.length})`;
+
       container.innerHTML = State.players.map((p, i) => `
         <div class="py-3 flex items-center justify-between">
           <div class="flex items-center gap-3">
@@ -1260,256 +1001,105 @@
               ${p.isHost ? `<span class="ml-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#ff2d55]/15 text-[#ff2d55]">Host</span>` : ''}
             </div>
           </div>
-          <div class="text-xs text-zinc-400 capitalize">
-            ${p.rolePref || 'Random'} • <span class="text-emerald-400 font-medium">Ready</span>
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-semibold ${p.isReady ? 'text-emerald-400' : 'text-amber-400'}">
+              ${p.isReady ? '✓ Ready' : 'Waiting'}
+            </span>
+            ${State.isHost && !p.isHost ? `
+              <button onclick="hostKickPlayer('${p.id}')" class="px-2 py-1 rounded bg-rose-500/20 text-rose-300 text-[10px] font-bold">Remove</button>
+            ` : ''}
           </div>
         </div>
       `).join('');
     }
 
-    // -----------------------------------------------------------
-    // 8. INVITE FRIENDS MODAL (QR CODE + SHARE LINK + PIN)
-    // -----------------------------------------------------------
-    function openInviteModal() {
-      const baseUrl = window.location.href.split('?')[0];
-      const joinUrl = `${baseUrl}?room=${State.roomCode}`;
-      document.getElementById('invite-room-pin').textContent = State.roomCode;
+    function updateReadyAndStartButtons() {
+      const startBtn = document.getElementById('btn-host-start');
+      if (!State.isHost) {
+        startBtn.classList.remove('hidden');
+        startBtn.disabled = true;
+        startBtn.textContent = State.isReady ? 'Ready! Waiting for Host to start...' : 'Tap Ready Up above to confirm';
+        startBtn.className = 'w-full py-3.5 rounded-2xl bg-zinc-800 text-zinc-400 font-bold text-sm cursor-not-allowed';
+        return;
+      }
 
-      // Generate crisp QR Code for the join URL
-      const qrApi = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=8&data=${encodeURIComponent(joinUrl)}`;
-      document.getElementById('invite-qr-img').src = qrApi;
-
-      openModal('modal-invite');
-    }
-
-    function copyInviteLink() {
-      const baseUrl = window.location.href.split('?')[0];
-      const joinUrl = `${baseUrl}?room=${State.roomCode}`;
-      navigator.clipboard.writeText(`Join my Manhunt Lobby! Room Code: ${State.roomCode}\nLink: ${joinUrl}`);
-      const btn = document.getElementById('btn-copy-link');
-      btn.textContent = '✓ Copied!';
-      setTimeout(() => {
-        btn.innerHTML = `<i data-lucide="copy" class="w-4 h-4"></i> Copy Link`;
-        lucide.createIcons();
-      }, 2000);
-    }
-
-    function shareNativeInvite() {
-      const baseUrl = window.location.href.split('?')[0];
-      const joinUrl = `${baseUrl}?room=${State.roomCode}`;
-      if (navigator.share) {
-        navigator.share({
-          title: 'Join Manhunt Lobby',
-          text: `Join my Manhunt game! Room Code: ${State.roomCode}`,
-          url: joinUrl
-        }).catch(() => {});
+      const allReady = State.players.every(x => x.isReady);
+      startBtn.disabled = !allReady;
+      if (allReady) {
+        startBtn.textContent = 'START MANHUNT';
+        startBtn.className = 'w-full py-3.5 rounded-2xl bg-[#ff2d55] hover:bg-[#ff2d55]/90 text-white font-bold text-sm tracking-wide shadow-lg shadow-[#ff2d55]/30 cursor-pointer';
       } else {
-        copyInviteLink();
+        startBtn.textContent = 'Waiting for all players to ready up...';
+        startBtn.className = 'w-full py-3.5 rounded-2xl bg-zinc-800 text-zinc-500 font-bold text-sm cursor-not-allowed';
       }
     }
 
-    // -----------------------------------------------------------
-    // 9. REAL-TIME MULTIPLAYER SYNC (WebRTC PeerJS + BroadcastChannel)
-    // -----------------------------------------------------------
-    function initRealtimeNetworking(isHost) {
-      // 1. Same-Device / Multi-Tab Sync via BroadcastChannel
-      if ('BroadcastChannel' in window) {
-        if (localChannel) localChannel.close();
-        localChannel = new BroadcastChannel(`manhunt_zero_${State.roomCode}`);
-        localChannel.onmessage = (e) => handleIncomingNetData(e.data);
-        if (!isHost) {
-          localChannel.postMessage({
-            type: 'JOIN_REQUEST',
-            player: State.players.find(p => p.id === State.myId)
-          });
-        }
-      }
+    function hostTriggerStartGame() {
+      if (!State.isHost) return;
 
-      // 2. Cross-Phone Sync over Internet via PeerJS WebRTC
-      if (typeof Peer !== 'undefined') {
-        try {
-          if (peerInstance) peerInstance.destroy();
-          const peerId = isHost
-            ? `mh_zero_cherry_${State.roomCode}`
-            : `mh_client_${State.myId}`;
-
-          peerInstance = new Peer(peerId);
-
-          peerInstance.on('open', () => {
-            if (!isHost) {
-              clientConnection = peerInstance.connect(`mh_zero_cherry_${State.roomCode}`);
-              clientConnection.on('open', () => {
-                clientConnection.send({
-                  type: 'JOIN_REQUEST',
-                  player: State.players.find(p => p.id === State.myId)
-                });
-              });
-              clientConnection.on('data', (data) => handleIncomingNetData(data));
-            }
-          });
-
-          if (isHost) {
-            peerInstance.on('connection', (conn) => {
-              hostConnections.push(conn);
-              conn.on('data', (data) => handleIncomingNetData(data));
-            });
-          }
-        } catch (e) {}
-      }
-    }
-
-    function sendNetMessage(payload) {
-      if (localChannel) {
-        try { localChannel.postMessage(payload); } catch (e) {}
-      }
-      if (clientConnection && clientConnection.open) {
-        try { clientConnection.send(payload); } catch (e) {}
-      }
-      hostConnections.forEach(conn => {
-        if (conn && conn.open) {
-          try { conn.send(payload); } catch (e) {}
-        }
-      });
-    }
-
-    function broadcastLobbyState() {
-      sendNetMessage({
-        type: 'LOBBY_SYNC',
-        players: State.players,
-        gameMode: State.gameMode,
-        perkMode: State.perkMode,
-        tagMode: State.tagMode,
-        startZoneRadius: State.startZoneRadius,
-        headStartTotal: State.headStartTotal,
-        pingInterval: State.pingInterval
-      });
-    }
-
-    function handleIncomingNetData(data) {
-      if (!data || !data.type) return;
-
-      if (data.type === 'JOIN_REQUEST' && data.player) {
-        const exists = State.players.some(p => p.id === data.player.id);
-        if (!exists) {
-          State.players.push(data.player);
-          showToast(`${data.player.name} joined the lobby!`);
-          saveStateToStorage();
-          renderLobbyPlayerList();
-        }
-        broadcastLobbyState();
-      } else if (data.type === 'LOBBY_SYNC') {
-        State.players = data.players;
-        State.gameMode = data.gameMode;
-        State.perkMode = data.perkMode;
-        State.tagMode = data.tagMode;
-        State.startZoneRadius = data.startZoneRadius;
-        State.headStartTotal = data.headStartTotal;
-        State.pingInterval = data.pingInterval;
-        saveStateToStorage();
-        if (State.screen === 'lobby') restoreLobbyView();
-      } else if (data.type === 'START_MATCH') {
-        State.players = data.players;
-        const me = State.players.find(p => p.id === State.myId);
-        if (me) State.myRole = me.role;
-        runRoleRevealOverlay();
-      } else if (data.type === 'POS_SYNC') {
-        const p = State.players.find(x => x.id === data.id);
-        if (p) {
-          p.lat = data.lat;
-          p.lng = data.lng;
-          renderMapPins();
-        }
-      } else if (data.type === 'PLAYER_TAGGED') {
-        applyPlayerTagResult(data.runnerId, data.hunterName, false);
-      } else if (data.type === 'PLAYER_LEFT') {
-        handleRemotePlayerExit(data.playerId, data.playerName, false);
-      } else if (data.type === 'RADIO_MSG') {
-        pushRadioMessage(data.text, false);
-      }
-    }
-
-    // -----------------------------------------------------------
-    // 10. ROLE ASSIGNMENT & "?" REVEAL ANIMATION
-    // -----------------------------------------------------------
-    function beginStartGameSequence() {
-      // Assign Roles
+      // 100% Random Role Assignment by App (Host & Joiners)
       const count = State.players.length;
       const targetHunters = count >= 6 ? 2 : 1;
 
-      State.players.forEach(p => {
-        p.role = 'runner';
-        p.status = 'active';
-      });
-
-      // Honor explicit Hunter preferences first
-      State.players.forEach(p => {
-        if (p.rolePref === 'hunter' && State.players.filter(x => x.role === 'hunter').length < targetHunters) {
-          p.role = 'hunter';
-        }
-      });
-
-      // Fill remaining Hunter slots
-      const candidates = State.players.filter(p => p.role !== 'hunter');
+      State.players.forEach(p => { p.role = 'runner'; p.status = 'active'; });
+      const candidates = [...State.players];
       while (State.players.filter(x => x.role === 'hunter').length < targetHunters && candidates.length > 0) {
         const idx = Math.floor(Math.random() * candidates.length);
         candidates[idx].role = 'hunter';
         candidates.splice(idx, 1);
       }
 
-      const me = State.players.find(p => p.id === State.myId);
+      const me = State.players.find(x => x.id === State.myId);
       if (me) State.myRole = me.role;
 
-      sendNetMessage({
-        type: 'START_MATCH',
+      publishPacket({
+        type: 'START_GAME',
         players: State.players
       });
 
       runRoleRevealOverlay();
     }
 
+    // --- ROLE REVEAL ANIMATION ---
     function runRoleRevealOverlay() {
-      const revealScreen = document.getElementById('screen-reveal');
-      const mysteryBox = document.getElementById('reveal-mystery');
+      const screen = document.getElementById('screen-reveal');
+      const mystery = document.getElementById('reveal-mystery');
       const finalBox = document.getElementById('reveal-final');
 
-      revealScreen.style.backgroundColor = '#09090b';
-      mysteryBox.classList.remove('hidden');
+      screen.style.backgroundColor = '#09090b';
+      mystery.classList.remove('hidden');
       finalBox.classList.add('hidden');
-      revealScreen.classList.remove('hidden');
+      screen.classList.remove('hidden');
       SFX.beep(300, 0.2);
 
       setTimeout(() => {
         SFX.ping();
-        mysteryBox.classList.add('hidden');
+        mystery.classList.add('hidden');
         finalBox.classList.remove('hidden');
         finalBox.classList.add('flex');
 
         const isHunter = State.myRole === 'hunter';
         if (isHunter) {
-          revealScreen.style.backgroundColor = '#e11d48';
+          screen.style.backgroundColor = '#e11d48';
           document.getElementById('reveal-role-pill').textContent = 'HUNTER';
           document.getElementById('reveal-main-heading').textContent = "You're it.";
-          document.getElementById('reveal-sub-text').textContent =
-            'Give the Runners their head start, then track their radar pings and tag them in person.';
+          document.getElementById('reveal-sub-text').textContent = 'Track radar pings and tag Runners in person.';
         } else {
-          revealScreen.style.backgroundColor = '#059669';
+          screen.style.backgroundColor = '#059669';
           document.getElementById('reveal-role-pill').textContent = 'RUNNER';
           document.getElementById('reveal-main-heading').textContent = 'Run & Hide.';
-          document.getElementById('reveal-sub-text').textContent =
-            'Your head start begins now! Stay inside the safe zone or your live location will be exposed.';
+          document.getElementById('reveal-sub-text').textContent = 'Head start active! Stay inside the safe zone.';
         }
 
         setTimeout(() => {
-          revealScreen.classList.add('hidden');
-          initializeNewActiveMatch();
+          screen.classList.add('hidden');
+          initializeActiveMatch();
         }, 2400);
       }, 1700);
     }
 
-    // -----------------------------------------------------------
-    // 11. ACTIVE MATCH INITIALIZATION & RESTORATION
-    // -----------------------------------------------------------
-    function initializeNewActiveMatch() {
+    // --- ACTIVE MATCH INITIALIZATION ---
+    function initializeActiveMatch() {
       State.screen = 'game';
       State.matchActive = true;
       State.inHeadStart = true;
@@ -1523,9 +1113,9 @@
       State.hideNextPing = false;
       State.radioLogs = [];
 
-      saveStateToStorage();
+      saveState();
       restoreActiveGameView();
-      pushRadioMessage(`Match started! Runners have a ${State.headStartTotal}s head start.`, false);
+      pushRadioMsg(`Match started! Runners have a ${State.headStartTotal}s head start.`, false);
     }
 
     function restoreActiveGameView() {
@@ -1533,35 +1123,24 @@
       document.getElementById('screen-lobby').classList.add('hidden');
       document.getElementById('screen-game').classList.remove('hidden');
 
-      updateRoleAndPerkHUD();
-      updateDashboardTimers();
-      initKeylessMap();
+      updateMatchHUD();
+      buildLeafletMap();
 
       if (gameTimerInterval) clearInterval(gameTimerInterval);
       gameTimerInterval = setInterval(tickGameSecond, 1000);
 
-      if (practiceSimInterval) clearInterval(practiceSimInterval);
-      if (State.isPractice) {
-        practiceSimInterval = setInterval(tickPracticePartners, 400);
-      }
+      if (tutorialSimInterval) clearInterval(tutorialSimInterval);
+      if (State.isTutorial) tutorialSimInterval = setInterval(tickTutorialBot, 500);
     }
 
-    function updateRoleAndPerkHUD() {
+    function updateMatchHUD() {
       const isHunter = State.myRole === 'hunter';
-      const roleBadge = document.getElementById('hud-my-role-badge');
+      const badge = document.getElementById('hud-my-role-badge');
+      badge.textContent = isHunter ? 'HUNTER' : 'RUNNER';
+      badge.className = isHunter
+        ? 'px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-[#ff2d55]/20 text-[#ff2d55] border border-[#ff2d55]/30'
+        : 'px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
 
-      if (State.myRole === 'spectator') {
-        roleBadge.textContent = 'SPECTATOR';
-        roleBadge.className = 'px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-zinc-800 text-zinc-400';
-      } else if (isHunter) {
-        roleBadge.textContent = 'HUNTER';
-        roleBadge.className = 'px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-[#ff2d55]/20 text-[#ff2d55] border border-[#ff2d55]/30';
-      } else {
-        roleBadge.textContent = 'RUNNER';
-        roleBadge.className = 'px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
-      }
-
-      // Show PIN if 2-Digit PIN Tagging is enabled
       const pinBox = document.getElementById('hud-pin-display');
       if (!isHunter && State.tagMode === 'pin') {
         pinBox.classList.remove('hidden');
@@ -1570,59 +1149,47 @@
         pinBox.classList.add('hidden');
       }
 
-      // Configure Perks Bar
       const perksRow = document.getElementById('game-perks-row');
       if (State.perkMode === 'perks' && State.myRole !== 'spectator') {
         perksRow.classList.remove('hidden');
         perksRow.classList.add('grid');
         if (isHunter) {
           document.getElementById('perk-1-title').textContent = '📡 Instant Scan';
-          document.getElementById('perk-1-sub').textContent = 'Reveal Runners within 150m';
           document.getElementById('perk-2-title').textContent = '🧭 Direction Pointer';
-          document.getElementById('perk-2-sub').textContent = 'Arrow to closest Runner';
         } else {
           document.getElementById('perk-1-title').textContent = '👻 Hide My Ping';
-          document.getElementById('perk-1-sub').textContent = 'Skip next radar reveal';
           document.getElementById('perk-2-title').textContent = '🎭 Fake Spot';
-          document.getElementById('perk-2-sub').textContent = 'Drop decoy 100m away';
         }
-        document.getElementById('perk-1-badge').textContent = State.perk1Left > 0 ? '1 Left' : 'Used';
-        document.getElementById('perk-2-badge').textContent = State.perk2Left > 0 ? '1 Left' : 'Used';
       } else {
         perksRow.classList.add('hidden');
         perksRow.classList.remove('grid');
       }
 
-      // Main Tag Button Text
-      const mainTagBtn = document.getElementById('btn-main-tag');
-      mainTagBtn.textContent = isHunter ? 'Tag a Runner' : 'I got tagged';
-
+      document.getElementById('btn-main-tag').textContent = isHunter ? 'Tag a Runner' : 'I got tagged';
       document.getElementById('hud-total-players-btn').textContent = String(State.players.length);
-      document.getElementById('practice-move-hint').classList.toggle('hidden', !State.isPractice);
+      document.getElementById('practice-move-hint').classList.toggle('hidden', !State.isTutorial);
     }
 
-    // -----------------------------------------------------------
-    // 12. 100% KEYLESS OPENSTREETMAP + FALLBACK TACTICAL RADAR
-    // -----------------------------------------------------------
-    function initKeylessMap() {
+    // --- MAP ENGINE (GOOGLE MAPS / SATELLITE + LEAFLET) ---
+    function buildLeafletMap() {
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
-          (pos) => {
+          pos => {
             State.centerLat = pos.coords.latitude;
             State.centerLng = pos.coords.longitude;
             State.myLat = pos.coords.latitude;
             State.myLng = pos.coords.longitude;
-            buildLeafletMap();
+            renderLeafletMapInstance();
           },
-          () => buildLeafletMap(),
+          () => renderLeafletMapInstance(),
           { enableHighAccuracy: true, timeout: 3000 }
         );
       } else {
-        buildLeafletMap();
+        renderLeafletMapInstance();
       }
     }
 
-    function buildLeafletMap() {
+    function renderLeafletMapInstance() {
       if (mapInstance) {
         mapInstance.remove();
         mapInstance = null;
@@ -1635,12 +1202,18 @@
         zoomControl: false
       });
 
-      // 100% Free Keyless OpenStreetMap Standard Tiles (Dark-filtered via CSS)
-      tileLayerInstance = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19
+      // Google Maps Street Tile Layer
+      tileLayerInstance = L.tileLayer('https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+        maxZoom: 20,
+        subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
       }).addTo(mapInstance);
 
-      // Safe Zone Circle (Crimson Red like 0:15 in clip)
+      // Google Maps Satellite Tile Layer (Available via toggle)
+      satelliteLayerInstance = L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+        maxZoom: 20,
+        subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+      });
+
       zoneCircleInstance = L.circle([State.centerLat, State.centerLng], {
         radius: State.currentZoneRadius,
         color: '#ff2d55',
@@ -1649,52 +1222,36 @@
         fillOpacity: 0.08
       }).addTo(mapInstance);
 
-      // Place Players
       State.players.forEach((p, idx) => {
         if (p.id === State.myId) {
-          p.lat = State.myLat;
-          p.lng = State.myLng;
-        } else if (p.isSim) {
+          p.lat = State.myLat; p.lng = State.myLng;
+        } else if (p.isSim || idx > 0) {
           const angle = (idx / State.players.length) * Math.PI * 2;
-          const dist = 45 + Math.random() * 60;
-          const off = metersToCoords(dist * Math.cos(angle), dist * Math.sin(angle), State.centerLat);
+          const off = metersToCoords(45 * Math.cos(angle), 45 * Math.sin(angle), State.centerLat);
           p.lat = State.centerLat + off.dLat;
           p.lng = State.centerLng + off.dLng;
         }
-        p.pingLat = p.lat;
-        p.pingLng = p.lng;
+        p.pingLat = p.lat; p.pingLng = p.lng;
       });
 
-      // Allow tap-to-move in Practice Walkthrough
-      mapInstance.on('click', (e) => {
+      mapInstance.on('click', e => {
         if (!State.matchActive) return;
-        const me = State.players.find(p => p.id === State.myId);
+        const me = State.players.find(x => x.id === State.myId);
         if (me) {
-          me.lat = e.latlng.lat;
-          me.lng = e.latlng.lng;
-          State.myLat = me.lat;
-          State.myLng = me.lng;
+          me.lat = e.latlng.lat; me.lng = e.latlng.lng;
+          State.myLat = me.lat; State.myLng = me.lng;
           renderMapPins();
         }
       });
 
-      // Watch Real GPS in Real Mode
       if (navigator.geolocation) {
         if (geoWatchId) navigator.geolocation.clearWatch(geoWatchId);
-        geoWatchId = navigator.geolocation.watchPosition((pos) => {
+        geoWatchId = navigator.geolocation.watchPosition(pos => {
           State.myLat = pos.coords.latitude;
           State.myLng = pos.coords.longitude;
-          const me = State.players.find(p => p.id === State.myId);
-          if (me) {
-            me.lat = State.myLat;
-            me.lng = State.myLng;
-          }
-          sendNetMessage({
-            type: 'POS_SYNC',
-            id: State.myId,
-            lat: State.myLat,
-            lng: State.myLng
-          });
+          const me = State.players.find(x => x.id === State.myId);
+          if (me) { me.lat = State.myLat; me.lng = State.myLng; }
+          publishPacket({ type: 'POS_UPDATE', id: State.myId, lat: State.myLat, lng: State.myLng });
           renderMapPins();
         }, null, { enableHighAccuracy: true });
       }
@@ -1702,51 +1259,40 @@
       renderMapPins();
     }
 
-    function toggleMapTileStyle() {
-      if (!mapInstance || !tileLayerInstance) return;
-      if (mapTilesVisible) {
-        mapInstance.removeLayer(tileLayerInstance);
-        mapTilesVisible = false;
-      } else {
+    function toggleGoogleSatelliteView() {
+      if (!mapInstance) return;
+      if (isSatelliteView) {
+        mapInstance.removeLayer(satelliteLayerInstance);
         tileLayerInstance.addTo(mapInstance);
-        mapTilesVisible = true;
+        isSatelliteView = false;
+        showToast('Switched to Google Street View');
+      } else {
+        mapInstance.removeLayer(tileLayerInstance);
+        satelliteLayerInstance.addTo(mapInstance);
+        isSatelliteView = true;
+        showToast('Switched to Google Satellite View');
       }
     }
 
     function centerMapOnPlayer() {
-      if (mapInstance) {
-        mapInstance.setView([State.myLat, State.myLng], 17, { animate: true });
-      }
+      if (mapInstance) mapInstance.setView([State.myLat, State.myLng], 17, { animate: true });
     }
 
     function renderMapPins() {
       if (!mapInstance) return;
-
       State.players.forEach(p => {
         if (p.status === 'eliminated' || p.status === 'left') {
-          if (mapMarkers[p.id]) {
-            mapInstance.removeLayer(mapMarkers[p.id]);
-            delete mapMarkers[p.id];
-          }
+          if (mapMarkers[p.id]) { mapInstance.removeLayer(mapMarkers[p.id]); delete mapMarkers[p.id]; }
           return;
         }
-
-        const outOfZone = calcMeters(State.centerLat, State.centerLng, p.lat, p.lng) > State.currentZoneRadius;
-        const showLive = p.id === State.myId || p.role === 'hunter' || outOfZone;
-
+        const outZone = calcMeters(State.centerLat, State.centerLng, p.lat, p.lng) > State.currentZoneRadius;
+        const showLive = p.id === State.myId || p.role === 'hunter' || outZone;
         const lat = showLive ? p.lat : p.pingLat;
         const lng = showLive ? p.lng : p.pingLng;
-
         const color = p.role === 'hunter' ? '#ff2d55' : (p.id === State.myId ? '#10b981' : '#38bdf8');
         const label = p.id === State.myId ? 'YOU' : p.name;
 
-        const html = `
-          <div class="pin-wrap">
-            <div class="pin-dot" style="background:${color};"></div>
-            <div class="pin-tag">${label}</div>
-          </div>
-        `;
-
+        const html = `<div class="pin-wrap"><div class="pin-dot" style="background:${color};"></div><div class="pin-tag">${label}</div></div>`;
         if (!mapMarkers[p.id]) {
           const icon = L.divIcon({ className: '', html, iconSize: [24, 24] });
           mapMarkers[p.id] = L.marker([lat, lng], { icon }).addTo(mapInstance);
@@ -1756,74 +1302,65 @@
       });
     }
 
-    // -----------------------------------------------------------
-    // 13. GAME CLOCK, ZONE SHRINK, PINGS & HEARTBEAT SENSOR
-    // -----------------------------------------------------------
+    // --- GAME TICK & PING REFRESH BEEP ---
     function tickGameSecond() {
       if (!State.matchActive) return;
 
-      // 1. Head Start Countdown
       if (State.inHeadStart) {
         State.headStartLeft--;
-        const phasePill = document.getElementById('hud-phase-pill');
-        phasePill.textContent = `Head Start (${State.headStartLeft}s)`;
-
+        document.getElementById('hud-phase-pill').textContent = `Head Start (${State.headStartLeft}s)`;
         if (State.headStartLeft <= 0) {
           State.inHeadStart = false;
-          phasePill.textContent = 'Hunt Live';
-          phasePill.className = 'px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#ff2d55]/20 text-[#ff2d55]';
+          document.getElementById('hud-phase-pill').textContent = 'Hunt Live';
+          document.getElementById('hud-phase-pill').className = 'px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#ff2d55]/20 text-[#ff2d55]';
           SFX.alert();
-          pushRadioMessage('Head start is over. Hunters are out!', false);
+          pushRadioMsg('Head start is over. Hunters are out!', false);
           executeRadarPing();
         }
         updateDashboardTimers();
-        saveStateToStorage();
+        saveState();
         return;
       }
 
-      // 2. Main Match Timer
       State.timeLeft--;
       if (State.timeLeft <= 0) {
-        concludeMatch('RUNNERS WIN', 'Time expired with surviving Runners still free!');
+        concludeMatch('RUNNERS WIN', 'Time expired!');
         return;
       }
 
-      // 3. Radar Ping Timer
+      // Ping Refresh Beep during last 3 seconds
       State.nextPingLeft--;
+      if (State.nextPingLeft <= 3 && State.nextPingLeft > 0) {
+        SFX.tick();
+      }
       if (State.nextPingLeft <= 0) {
         executeRadarPing();
         State.nextPingLeft = State.pingInterval;
       }
 
-      // 4. Shrinking Safe Zone Timer
       State.nextShrinkLeft--;
       if (State.nextShrinkLeft <= 0) {
         State.currentZoneRadius = Math.max(70, Math.round(State.currentZoneRadius * 0.78));
         if (zoneCircleInstance) zoneCircleInstance.setRadius(State.currentZoneRadius);
         SFX.alert();
-        pushRadioMessage(`Safe zone shrunk to ${State.currentZoneRadius}m!`, false);
+        pushRadioMsg(`Safe zone shrunk to ${State.currentZoneRadius}m!`, false);
         State.nextShrinkLeft = 300;
       }
 
-      // 5. Out-of-Zone Check
-      const me = State.players.find(p => p.id === State.myId);
+      const me = State.players.find(x => x.id === State.myId);
       if (me) {
-        const distCenter = calcMeters(State.centerLat, State.centerLng, me.lat, me.lng);
-        const warnEl = document.getElementById('hud-zone-warning');
-        if (distCenter > State.currentZoneRadius) {
-          warnEl.classList.remove('hidden');
-          me.pingLat = me.lat;
-          me.pingLng = me.lng;
+        const d = calcMeters(State.centerLat, State.centerLng, me.lat, me.lng);
+        const w = document.getElementById('hud-zone-warning');
+        if (d > State.currentZoneRadius) {
+          w.classList.remove('hidden');
+          me.pingLat = me.lat; me.pingLng = me.lng;
         } else {
-          warnEl.classList.add('hidden');
+          w.classList.add('hidden');
         }
       }
 
-      // 6. Danger Heartbeat Sensor (When Perks Enabled)
-      updateHeartbeatSensor();
-
       updateDashboardTimers();
-      saveStateToStorage();
+      saveState();
     }
 
     function executeRadarPing() {
@@ -1831,53 +1368,19 @@
       State.players.forEach(p => {
         if (p.id === State.myId && State.hideNextPing) {
           State.hideNextPing = false;
-          pushRadioMessage(`${p.name} stayed hidden from the radar ping!`, false);
           return;
         }
-        p.pingLat = p.lat;
-        p.pingLng = p.lng;
+        p.pingLat = p.lat; p.pingLng = p.lng;
       });
       renderMapPins();
     }
 
-    function updateHeartbeatSensor() {
-      const mapBox = document.getElementById('map-container');
-      const banner = document.getElementById('perk-heartbeat-banner');
-
-      if (State.perkMode !== 'perks' || State.myRole !== 'runner' || State.inHeadStart) {
-        mapBox.classList.remove('heartbeat-active');
-        banner.classList.add('hidden');
-        return;
-      }
-
-      const me = State.players.find(p => p.id === State.myId);
-      const hunters = State.players.filter(p => p.role === 'hunter' && p.status === 'active');
-      let minD = Infinity;
-      hunters.forEach(h => {
-        const d = calcMeters(me.lat, me.lng, h.lat, h.lng);
-        if (d < minD) minD = d;
-      });
-
-      if (minD <= 40) {
-        mapBox.classList.add('heartbeat-active');
-        banner.classList.remove('hidden');
-        document.getElementById('perk-heartbeat-text').textContent = `💓 Hunter Nearby (${Math.round(minD)}m)`;
-        SFX.heartbeat();
-      } else {
-        mapBox.classList.remove('heartbeat-active');
-        banner.classList.add('hidden');
-      }
-    }
-
-    function tickPracticePartners() {
-      if (!State.matchActive || !State.isPractice) return;
+    function tickTutorialBot() {
+      if (!State.matchActive || !State.isTutorial) return;
       State.players.forEach(p => {
-        if (!p.isSim || p.status !== 'active') return;
-        if (State.inHeadStart && p.role === 'hunter') return;
-
-        const off = metersToCoords((Math.random() - 0.5) * 5, (Math.random() - 0.5) * 5, State.centerLat);
-        p.lat += off.dLat;
-        p.lng += off.dLng;
+        if (p.id === State.myId) return;
+        const off = metersToCoords((Math.random() - 0.5) * 4, (Math.random() - 0.5) * 4, State.centerLat);
+        p.lat += off.dLat; p.lng += off.dLng;
       });
       renderMapPins();
     }
@@ -1888,420 +1391,176 @@
       document.getElementById('hud-zone-shrink').textContent = formatTime(State.nextShrinkLeft);
       document.getElementById('hud-zone-size').textContent = `${State.currentZoneRadius}m`;
 
-      const activeRunners = State.players.filter(p => p.role === 'runner' && p.status === 'active').length;
-      const totalRunners = Math.max(1, State.players.filter(p => p.role === 'runner' || p.status === 'eliminated').length);
-
-      document.getElementById('hud-runners-ratio').textContent = `${activeRunners} of ${totalRunners}`;
-      document.getElementById('hud-runners-fill').style.width = `${Math.round((activeRunners / totalRunners) * 100)}%`;
+      const active = State.players.filter(x => x.role === 'runner' && x.status === 'active').length;
+      const total = Math.max(1, State.players.filter(x => x.role === 'runner' || x.status === 'eliminated').length);
+      document.getElementById('hud-runners-ratio').textContent = `${active} of ${total}`;
+      document.getElementById('hud-runners-fill').style.width = `${Math.round((active/total)*100)}%`;
     }
 
-    // -----------------------------------------------------------
-    // 14. USING PERKS (Plain-English Actions)
-    // -----------------------------------------------------------
+    // --- PERKS ---
     function usePerk(slot) {
       if (State.perkMode !== 'perks') return;
-      const me = State.players.find(p => p.id === State.myId);
+      const me = State.players.find(x => x.id === State.myId);
       if (!me || me.status !== 'active') return;
 
       if (slot === 1) {
         if (State.perk1Left <= 0) return;
         State.perk1Left = 0;
         document.getElementById('perk-1-badge').textContent = 'Used';
-        document.getElementById('btn-perk-1').classList.add('opacity-50');
-
         if (State.myRole === 'runner') {
           State.hideNextPing = true;
-          showToast('👻 Hide My Ping active! You will not appear on the next radar update.');
+          showToast('👻 Hide My Ping active!');
         } else {
           SFX.ping();
           State.players.forEach(p => {
             if (p.role === 'runner' && calcMeters(me.lat, me.lng, p.lat, p.lng) <= 150) {
-              p.pingLat = p.lat;
-              p.pingLng = p.lng;
+              p.pingLat = p.lat; p.pingLng = p.lng;
             }
           });
           renderMapPins();
-          showToast('📡 Instant Scan complete! Nearby Runners updated on your map.');
-        }
-      } else if (slot === 2) {
-        if (State.perk2Left <= 0) return;
-        State.perk2Left = 0;
-        document.getElementById('perk-2-badge').textContent = 'Used';
-        document.getElementById('btn-perk-2').classList.add('opacity-50');
-
-        if (State.myRole === 'runner') {
-          const angle = Math.random() * Math.PI * 2;
-          const off = metersToCoords(100 * Math.cos(angle), 100 * Math.sin(angle), me.lat);
-          if (decoyPinInstance) mapInstance.removeLayer(decoyPinInstance);
-          const icon = L.divIcon({
-            className: '',
-            html: `<div class="pin-wrap"><div class="pin-dot" style="background:#10b981;"></div><div class="pin-tag">${me.name}</div></div>`,
-            iconSize: [24, 24]
-          });
-          decoyPinInstance = L.marker([me.lat + off.dLat, me.lng + off.dLng], { icon }).addTo(mapInstance);
-          showToast('🎭 Fake Spot dropped 100m away!');
-        } else {
-          const runners = State.players.filter(p => p.role === 'runner' && p.status === 'active');
-          if (runners.length === 0) return;
-          let closest = runners[0];
-          let minD = Infinity;
-          runners.forEach(r => {
-            const d = calcMeters(me.lat, me.lng, r.lat, r.lng);
-            if (d < minD) { minD = d; closest = r; }
-          });
-          const dir = getDirectionName(me.lat, me.lng, closest.lat, closest.lng);
-          const banner = document.getElementById('perk-compass-banner');
-          document.getElementById('perk-compass-text').textContent = `Closest Runner (${closest.name}): ${Math.round(minD)}m ${dir}`;
-          banner.classList.remove('hidden');
-          setTimeout(() => banner.classList.add('hidden'), 10000);
+          showToast('📡 Instant Scan complete!');
         }
       }
-      saveStateToStorage();
+      saveState();
     }
 
-    // -----------------------------------------------------------
-    // 15. TAGGING VERIFICATION & VICTORY CHECK
-    // -----------------------------------------------------------
+    // --- TAGGING & EXIT ---
     function openTaggingSheet() {
-      const me = State.players.find(p => p.id === State.myId);
-      const titleEl = document.getElementById('tag-sheet-title');
-      const descEl = document.getElementById('tag-sheet-desc');
-      const contentEl = document.getElementById('tag-sheet-content');
+      const title = document.getElementById('tag-sheet-title');
+      const desc = document.getElementById('tag-sheet-desc');
+      const content = document.getElementById('tag-sheet-content');
 
-      // Runner tapping "I got tagged"
       if (State.myRole === 'runner') {
-        titleEl.textContent = 'Did you get caught?';
-        descEl.textContent = State.gameMode === 'infection'
-          ? 'Infection Mode is on: confirming will switch you to the Hunter team!'
-          : 'Confirming will mark you out and switch you to Spectator view.';
-        contentEl.innerHTML = `
-          <button onclick="applyPlayerTagResult('${State.myId}', 'Hunter', true); closeModal('modal-tag');"
-            class="w-full py-3.5 rounded-2xl bg-[#ff2d55] text-white font-bold text-sm">
-            Confirm — I Got Tagged
-          </button>
-        `;
+        title.textContent = 'Confirm Tag';
+        desc.textContent = 'Confirming will mark you out.';
+        content.innerHTML = `<button onclick="applyTagResult('${State.myId}', 'Hunter', true); closeModal('modal-tag');" class="w-full py-3.5 rounded-2xl bg-[#ff2d55] text-white font-bold text-sm">Confirm — I Got Tagged</button>`;
         openModal('modal-tag');
         return;
       }
 
-      // Hunter tagging a Runner
-      const activeRunners = State.players.filter(p => p.role === 'runner' && p.status === 'active');
-      titleEl.textContent = 'Tag a Runner';
-
-      if (activeRunners.length === 0) {
-        descEl.textContent = 'No active Runners left!';
-        contentEl.innerHTML = '';
-        openModal('modal-tag');
-        return;
-      }
-
-      if (State.tagMode === 'confirm') {
-        descEl.textContent = 'Tap the Runner you physically tagged in person:';
-        contentEl.innerHTML = activeRunners.map(r => `
-          <button onclick="applyPlayerTagResult('${r.id}', '${State.myName}', true); closeModal('modal-tag');"
-            class="w-full p-3.5 rounded-2xl bg-zinc-900 border border-white/10 flex items-center justify-between">
-            <span class="font-bold text-sm text-white">${r.name}</span>
-            <span class="px-3 py-1 rounded-lg bg-[#ff2d55] text-white text-xs font-bold">Mark Out</span>
-          </button>
-        `).join('');
-      } else if (State.tagMode === 'pin') {
-        descEl.textContent = 'Enter the 2-digit PIN shown on the caught Runner’s phone screen:';
-        contentEl.innerHTML = activeRunners.map(r => `
-          <div class="p-3 rounded-2xl bg-zinc-900 border border-white/10 flex items-center justify-between">
-            <div>
-              <div class="font-bold text-sm text-white">${r.name}</div>
-              ${r.isSim ? `<div class="text-[10px] text-zinc-400">Practice PIN: ${r.pin}</div>` : ''}
-            </div>
-            <div class="flex items-center gap-2">
-              <input id="pin-in-${r.id}" type="text" maxlength="2" placeholder="PIN"
-                class="w-14 bg-zinc-800 border border-white/15 rounded-xl px-2 py-1.5 text-center mono font-bold text-sm text-white outline-none" />
-              <button onclick="checkRunnerPin('${r.id}')" class="px-3 py-1.5 rounded-xl bg-[#ff2d55] text-white font-bold text-xs">
-                Tag
-              </button>
-            </div>
-          </div>
-        `).join('');
-      } else if (State.tagMode === 'gps') {
-        descEl.textContent = 'GPS Nearby: You must be within 25 meters of the Runner to unlock their tag button.';
-        contentEl.innerHTML = activeRunners.map(r => {
-          const d = Math.round(calcMeters(me.lat, me.lng, r.lat, r.lng));
-          const closeEnough = d <= 25;
-          return `
-            <div class="p-3 rounded-2xl bg-zinc-900 border border-white/10 flex items-center justify-between">
-              <div>
-                <div class="font-bold text-sm text-white">${r.name}</div>
-                <div class="text-xs ${closeEnough ? 'text-emerald-400' : 'text-zinc-400'}">${d}m away</div>
-              </div>
-              <button ${closeEnough ? `onclick="applyPlayerTagResult('${r.id}', '${State.myName}', true); closeModal('modal-tag');"` : 'disabled'}
-                class="px-3 py-1.5 rounded-xl font-bold text-xs ${closeEnough ? 'bg-[#ff2d55] text-white' : 'bg-zinc-800 text-zinc-500'}">
-                ${closeEnough ? 'Tag Out' : 'Too Far (>25m)'}
-              </button>
-            </div>
-          `;
-        }).join('');
-      }
-
+      const activeRunners = State.players.filter(x => x.role === 'runner' && x.status === 'active');
+      title.textContent = 'Tag a Runner';
+      desc.textContent = 'Select Runner:';
+      content.innerHTML = activeRunners.map(r => `
+        <button onclick="applyTagResult('${r.id}', '${State.myName}', true); closeModal('modal-tag');" class="w-full p-3.5 rounded-2xl bg-zinc-900 border border-white/10 flex items-center justify-between">
+          <span class="font-bold text-sm text-white">${r.name}</span>
+          <span class="px-3 py-1 rounded-lg bg-[#ff2d55] text-white text-xs font-bold">Tag Out</span>
+        </button>
+      `).join('');
       openModal('modal-tag');
     }
 
-    function checkRunnerPin(runnerId) {
-      const r = State.players.find(p => p.id === runnerId);
-      const inp = document.getElementById(`pin-in-${runnerId}`);
-      if (!r || !inp) return;
-      if (inp.value.trim() === r.pin) {
-        applyPlayerTagResult(r.id, State.myName, true);
-        closeModal('modal-tag');
-      } else {
-        showToast('Incorrect 2-digit PIN!');
-      }
-    }
-
-    function applyPlayerTagResult(runnerId, hunterName, broadcast = true) {
-      const target = State.players.find(p => p.id === runnerId);
+    function applyTagResult(runnerId, hunterName, broadcast = true) {
+      const target = State.players.find(x => x.id === runnerId);
       if (!target || target.status !== 'active') return;
 
       if (State.gameMode === 'infection') {
         target.role = 'hunter';
         if (target.id === State.myId) State.myRole = 'hunter';
-        pushRadioMessage(`${target.name} was caught by ${hunterName} and became a Hunter!`, false);
-        showToast(`${target.name} is now a HUNTER!`);
+        showToast(`${target.name} became a HUNTER!`);
       } else {
         target.status = 'eliminated';
         if (target.id === State.myId) State.myRole = 'spectator';
-        pushRadioMessage(`${target.name} was tagged out by ${hunterName}!`, false);
         showToast(`${target.name} was tagged out!`);
       }
 
-      if (broadcast) {
-        sendNetMessage({
-          type: 'PLAYER_TAGGED',
-          runnerId,
-          hunterName
-        });
-      }
-
-      updateRoleAndPerkHUD();
-      updateDashboardTimers();
+      if (broadcast) publishPacket({ type: 'TAG_RESULT', runnerId, hunterName });
+      updateMatchHUD();
       renderMapPins();
-      saveStateToStorage();
-
-      const remaining = State.players.filter(p => p.role === 'runner' && p.status === 'active');
-      if (remaining.length === 0) {
-        concludeMatch('HUNTERS WIN', 'All Runners were tracked down and caught before time expired.');
-      }
+      saveState();
     }
 
-    // -----------------------------------------------------------
-    // 16. PROTECTED 2-STEP EXIT & AUTOMATIC HUNTER TRANSFER
-    // -----------------------------------------------------------
     function openSafeMenuModal() {
       document.getElementById('menu-room-code').textContent = `#${State.roomCode}`;
-      document.getElementById('menu-rules-summary').textContent =
-        `${State.gameMode === 'infection' ? 'Infection' : 'Classic'} • ${State.perkMode === 'perks' ? 'Perks On' : 'Standard'}`;
-
       document.getElementById('leave-step-0').classList.remove('hidden');
       document.getElementById('leave-step-1').classList.add('hidden');
       document.getElementById('leave-step-2').classList.add('hidden');
       openModal('modal-safe-menu');
     }
-
     function showLeaveConfirmationStep1() {
       document.getElementById('leave-step-0').classList.add('hidden');
       document.getElementById('leave-step-1').classList.remove('hidden');
     }
-
     function showLeaveConfirmationStep2() {
       document.getElementById('leave-step-1').classList.add('hidden');
       document.getElementById('leave-step-2').classList.remove('hidden');
     }
-
     function confirmFinalLeaveGame() {
       closeModal('modal-safe-menu');
-      sendNetMessage({
-        type: 'PLAYER_LEFT',
-        playerId: State.myId,
-        playerName: State.myName
-      });
-
+      publishPacket({ type: 'PLAYER_EXIT', playerId: State.myId, playerName: State.myName });
       if (gameTimerInterval) clearInterval(gameTimerInterval);
-      if (practiceSimInterval) clearInterval(practiceSimInterval);
-      if (geoWatchId && navigator.geolocation) navigator.geolocation.clearWatch(geoWatchId);
-
       State.matchActive = false;
       State.screen = 'home';
-      saveStateToStorage();
-
+      saveState();
       document.getElementById('screen-game').classList.add('hidden');
-      document.getElementById('screen-lobby').classList.add('hidden');
       document.getElementById('screen-home').classList.remove('hidden');
     }
-
-    // Smart Handler when any Player (or the Hunter!) exits mid-game
-    function handleRemotePlayerExit(playerId, playerName, broadcast = false) {
+    function handleRemoteExit(playerId, playerName) {
       const p = State.players.find(x => x.id === playerId);
-      if (!p || p.status === 'left') return;
-
-      const wasHunter = p.role === 'hunter';
-      p.status = 'left';
-
-      pushRadioMessage(`📢 ${playerName} left the game.`, false);
-      showToast(`${playerName} has left the match.`);
-
-      const activeHunters = State.players.filter(x => x.role === 'hunter' && x.status === 'active');
-      const activeRunners = State.players.filter(x => x.role === 'runner' && x.status === 'active');
-
-      // If the LAST Hunter left the game:
-      if (wasHunter && activeHunters.length === 0) {
-        if (activeRunners.length >= 2) {
-          // Automatically promote a random Runner to Hunter so the match keeps going!
-          const newHunter = activeRunners[0];
-          newHunter.role = 'hunter';
-          if (newHunter.id === State.myId) {
-            State.myRole = 'hunter';
-            updateRoleAndPerkHUD();
-          }
-          pushRadioMessage(`⚡ Hunter left! ${newHunter.name} has been promoted to the new HUNTER!`, false);
-          showToast(`Hunter left! ${newHunter.name} is now the NEW HUNTER!`);
-        } else {
-          // Only 1 player left—stop game and declare Survivors the winner
-          concludeMatch('MATCH ENDED EARLY', `The Hunter (${playerName}) forfeited and left the game.`);
-          return;
-        }
-      } else if (activeRunners.length === 0) {
-        concludeMatch('HUNTERS WIN', 'All remaining Runners have been eliminated or left.');
-        return;
-      }
-
+      if (p) p.status = 'left';
+      showToast(`${playerName} left the game.`);
       renderMapPins();
-      updateDashboardTimers();
-      saveStateToStorage();
     }
 
-    // -----------------------------------------------------------
-    // 17. RADIO, PLAYERS SHEET & POST-MATCH SUMMARY REPORT
-    // -----------------------------------------------------------
-    function pushRadioMessage(text, broadcast = true) {
-      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      State.radioLogs.unshift({ text, time });
+    function pushRadioMsg(text, broadcast = true) {
+      State.radioLogs.unshift({ text });
       document.getElementById('hud-radio-preview').textContent = text;
-
-      const listEl = document.getElementById('radio-messages-list');
-      if (listEl) {
-        listEl.innerHTML = State.radioLogs.map(item => `
-          <div class="p-3 rounded-2xl bg-zinc-900 border border-white/5 text-xs flex items-center justify-between gap-2">
-            <span class="text-zinc-200 font-medium">${item.text}</span>
-            <span class="text-[10px] text-zinc-500 mono shrink-0">${item.time}</span>
-          </div>
-        `).join('');
-      }
-
-      if (broadcast) {
-        sendNetMessage({ type: 'RADIO_MSG', text });
-      }
+      if (broadcast) publishPacket({ type: 'RADIO_BROADCAST', text });
     }
-
-    function sendQuickRadio(msg) {
-      pushRadioMessage(`${State.myName}: "${msg}"`, true);
-      closeModal('modal-radio');
-    }
-
+    function sendQuickRadio(txt) { pushRadioMsg(`${State.myName}: "${txt}"`, true); closeModal('modal-radio'); }
     function openPlayersSheet() {
-      const list = document.getElementById('active-players-list');
-      list.innerHTML = State.players.map(p => {
-        let statusTag = '';
-        if (p.status === 'left') {
-          statusTag = `<span class="px-2.5 py-0.5 rounded-full bg-zinc-800 text-zinc-500 text-[11px] font-semibold">Left Game</span>`;
-        } else if (p.status === 'eliminated') {
-          statusTag = `<span class="px-2.5 py-0.5 rounded-full bg-zinc-800 text-zinc-400 text-[11px] font-semibold">Caught</span>`;
-        } else if (p.role === 'hunter') {
-          statusTag = `<span class="px-2.5 py-0.5 rounded-full bg-[#ff2d55]/20 text-[#ff2d55] text-[11px] font-bold">Hunter</span>`;
-        } else {
-          statusTag = `<span class="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[11px] font-bold">Runner</span>`;
-        }
-
-        return `
-          <div class="p-3 rounded-2xl bg-zinc-900 border border-white/5 flex items-center justify-between">
-            <span class="font-semibold text-sm text-white">${p.name} ${p.id === State.myId ? '(You)' : ''}</span>
-            ${statusTag}
-          </div>
-        `;
-      }).join('');
+      document.getElementById('active-players-list').innerHTML = State.players.map(p => `
+        <div class="p-3 rounded-2xl bg-zinc-900 border border-white/5 flex items-center justify-between">
+          <span class="font-semibold text-sm text-white">${p.name}</span>
+          <span class="text-xs text-zinc-400 capitalize">${p.role}</span>
+        </div>
+      `).join('');
       openModal('modal-players');
     }
-
-    function concludeMatch(headline, reason) {
+    function concludeMatch(title, reason) {
       State.matchActive = false;
       if (gameTimerInterval) clearInterval(gameTimerInterval);
-      if (practiceSimInterval) clearInterval(practiceSimInterval);
-
       document.getElementById('sum-room').textContent = State.roomCode;
-      document.getElementById('sum-winner-title').textContent = headline;
+      document.getElementById('sum-winner-title').textContent = title;
       document.getElementById('sum-winner-reason').textContent = reason;
-      document.getElementById('sum-final-zone').textContent = `${State.currentZoneRadius}m`;
-
-      const survivors = State.players.filter(p => p.role === 'runner' && p.status === 'active').length;
-      document.getElementById('sum-survivors').textContent = String(survivors);
-
-      const timelineEl = document.getElementById('sum-timeline');
-      timelineEl.innerHTML = State.radioLogs.slice(0, 5).map(l => `<div>• ${l.text}</div>`).join('');
-
-      saveStateToStorage();
+      saveState();
       openModal('modal-summary');
     }
-
     function returnToLobbyFromSummary() {
       closeModal('modal-summary');
       State.screen = 'lobby';
-      State.players = State.players.filter(p => p.status !== 'left');
-      State.players.forEach(p => { p.status = 'active'; });
-      saveStateToStorage();
       restoreLobbyView();
     }
 
-    function openModal(id) {
-      document.getElementById(id).classList.remove('hidden');
+    function openInviteModal() {
+      const url = `${window.location.href.split('?')[0]}?room=${State.roomCode}`;
+      document.getElementById('invite-room-pin').textContent = State.roomCode;
+      document.getElementById('invite-qr-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(url)}`;
+      openModal('modal-invite');
     }
-
-    function closeModal(id) {
-      document.getElementById(id).classList.add('hidden');
+    function copyInviteLink() {
+      navigator.clipboard.writeText(`Join Manhunt! Room Code: ${State.roomCode}`);
+      showToast('Invite copied!');
     }
-
-    // -----------------------------------------------------------
-    // 18. MATH & GEOMETRY HELPERS
-    // -----------------------------------------------------------
-    function formatTime(sec) {
-      const s = Math.max(0, sec);
-      const m = Math.floor(s / 60);
-      const r = s % 60;
-      return `${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}`;
+    function shareNativeInvite() {
+      if (navigator.share) navigator.share({ title: 'Manhunt', text: `Room #${State.roomCode}` }).catch(()=>{});
+      else copyInviteLink();
     }
+    function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+    function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
 
+    function formatTime(s) {
+      const m = Math.floor(s / 60), r = s % 60;
+      return `${String(m).padStart(2,'0')}:${String(r).padStart(2,'0')}`;
+    }
     function calcMeters(lat1, lon1, lat2, lon2) {
-      const R = 6371000;
-      const rad = x => (x * Math.PI) / 180;
-      const dLat = rad(lat2 - lat1);
-      const dLon = rad(lon2 - lon1);
-      const a =
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(rad(lat1)) * Math.cos(rad(lat2)) *
-        Math.sin(dLon / 2) * Math.sin(dLon / 2);
-      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      const R = 6371000, rad = x => x * Math.PI / 180;
+      const dLat = rad(lat2 - lat1), dLon = rad(lon2 - lon1);
+      const a = Math.sin(dLat/2)**2 + Math.cos(rad(lat1))*Math.cos(rad(lat2))*Math.sin(dLon/2)**2;
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     }
-
     function metersToCoords(dx, dy, lat) {
-      return {
-        dLat: dy / 111320,
-        dLng: dx / (111320 * Math.cos((lat * Math.PI) / 180))
-      };
-    }
-
-    function getDirectionName(lat1, lng1, lat2, lng2) {
-      const dy = lat2 - lat1;
-      const dx = Math.cos((lat1 * Math.PI) / 180) * (lng2 - lng1);
-      let deg = (Math.atan2(dx, dy) * 180) / Math.PI;
-      if (deg < 0) deg += 360;
-      const names = ['North', 'North-East', 'East', 'South-East', 'South', 'South-West', 'West', 'North-West'];
-      return names[Math.round(deg / 45) % 8];
+      return { dLat: dy / 111320, dLng: dx / (111320 * Math.cos(lat * Math.PI / 180)) };
     }
   </script>
 </body>
